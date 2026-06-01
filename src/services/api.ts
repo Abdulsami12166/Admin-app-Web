@@ -1,0 +1,173 @@
+const REMOTE_ADMIN_API_BASE_URL = 'https://ecommerce-app-backend-1kn0.onrender.com/api/v1';
+
+const API_BASE_URL =
+  import.meta.env.VITE_ADMIN_API_BASE_URL || (import.meta.env.DEV ? '/api/v1' : REMOTE_ADMIN_API_BASE_URL);
+
+export const ADMIN_TOKEN_KEY = 'ecommerce-admin-web-token';
+export const ADMIN_USER_KEY = 'ecommerce-admin-web-user';
+
+export type AdminUser = {
+  _id?: string;
+  id?: string;
+  name?: string;
+  email?: string;
+  phone?: string;
+  role?: AdminRole | string;
+  blocked?: boolean;
+  isVerified?: boolean;
+  lastLoginAt?: string;
+  createdAt?: string;
+};
+
+export type AdminRole = 'super-admin' | 'admin' | 'product-manager' | 'support';
+
+export type AdminProduct = {
+  _id: string;
+  title?: string;
+  name?: string;
+  description?: string;
+  slug?: string;
+  category?: string;
+  subCategory?: string;
+  type?: string;
+  price?: number;
+  discountedPrice?: number;
+  stock?: number;
+  brand?: string;
+  sizes?: string[];
+  isPublished?: boolean;
+  images?: string[];
+};
+
+export type AdminOrder = {
+  _id: string;
+  totalAmount?: number;
+  orderStatus?: string;
+  paymentStatus?: string;
+  paymentMethod?: string;
+  paymentReference?: string;
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
+  transactionStatus?: string;
+  transactionVerifiedAt?: string;
+  createdAt?: string;
+  user?: AdminUser;
+  items?: Array<{title?: string; quantity?: number}>;
+};
+
+export type AdminTransaction = Pick<
+  AdminOrder,
+  | '_id'
+  | 'totalAmount'
+  | 'orderStatus'
+  | 'paymentStatus'
+  | 'paymentMethod'
+  | 'paymentReference'
+  | 'razorpayOrderId'
+  | 'razorpayPaymentId'
+  | 'transactionStatus'
+  | 'transactionVerifiedAt'
+  | 'createdAt'
+  | 'user'
+>;
+
+export type ActivityItem = {
+  _id?: string;
+  action?: string;
+  details?: string;
+  createdAt?: string;
+  user?: AdminUser;
+};
+
+export type DashboardMetrics = {
+  totalUsers?: number;
+  totalOrders?: number;
+  productCount?: number;
+  revenue?: number;
+  blockedUsers?: number;
+  newUsersToday?: number;
+  ordersLast24h?: number;
+  activeUsersLast24h?: number;
+  ordersByStatus?: Record<string, number>;
+  recentActivities?: ActivityItem[];
+};
+
+type RequestOptions = {
+  method?: 'GET' | 'POST' | 'PATCH';
+  body?: unknown;
+  auth?: boolean;
+};
+
+class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
+async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const token = options.auth ? localStorage.getItem(ADMIN_TOKEN_KEY) : null;
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: options.method || 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? {Authorization: `Bearer ${token}`} : {}),
+    },
+    ...(options.body ? {body: JSON.stringify(options.body)} : {}),
+  });
+  const text = await response.text();
+  const payload = text ? JSON.parse(text) : null;
+
+  if (!response.ok) {
+    const message = payload?.message || payload?.error || `Request failed: ${response.status}`;
+    if (response.status === 401 || (response.status === 403 && message.toLowerCase().includes('admin access'))) {
+      localStorage.removeItem(ADMIN_TOKEN_KEY);
+      localStorage.removeItem(ADMIN_USER_KEY);
+      window.dispatchEvent(new Event('admin-auth-expired'));
+    }
+    throw new ApiError(message, response.status);
+  }
+
+  return payload as T;
+}
+
+export async function loginAdmin(email: string, password: string) {
+  return apiRequest<{success: boolean; token: string; user: AdminUser; message?: string}>(
+    '/admin/auth/login',
+    {method: 'POST', body: {email, password}},
+  );
+}
+
+export const adminApi = {
+  getMetrics: () => apiRequest<{data: DashboardMetrics}>('/admin/dashboard/metrics', {auth: true}),
+  getActivities: () => apiRequest<{data: {activities: ActivityItem[]}}>('/admin/activities', {auth: true}),
+  getUsers: () => apiRequest<{data: {users: AdminUser[]}}>('/admin/users', {auth: true}),
+  blockUser: (userId: string) => apiRequest(`/admin/users/${userId}/block`, {method: 'POST', auth: true}),
+  unblockUser: (userId: string) => apiRequest(`/admin/users/${userId}/unblock`, {method: 'POST', auth: true}),
+  forceLogoutUser: (userId: string) => apiRequest(`/admin/users/${userId}/logout`, {method: 'POST', auth: true}),
+  getProducts: () => apiRequest<{data: {products: AdminProduct[]}}>('/admin/products', {auth: true}),
+  createProduct: (body: Record<string, unknown>) =>
+    apiRequest<{data: {product: AdminProduct}}>('/admin/products', {
+      method: 'POST',
+      body,
+      auth: true,
+    }),
+  getOrders: () => apiRequest<{data: {orders: AdminOrder[]}}>('/admin/orders', {auth: true}),
+  getTransactions: async () => {
+    const response = await apiRequest<{data: {orders: AdminOrder[]}}>('/admin/orders', {auth: true});
+    return {data: {transactions: response.data?.orders || []}};
+  },
+  updateOrderStatus: (orderId: string, orderStatus: string) =>
+    apiRequest(`/admin/orders/${orderId}/status`, {
+      method: 'PATCH',
+      body: {orderStatus},
+      auth: true,
+    }),
+};
+
+export function getSocketBaseUrl() {
+  return import.meta.env.VITE_ADMIN_SOCKET_URL || REMOTE_ADMIN_API_BASE_URL.replace('/api/v1', '');
+}
