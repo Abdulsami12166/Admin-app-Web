@@ -1,5 +1,5 @@
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
-const PRODUCTION_ADMIN_API_BASE_URL = 'https://ecommerce-app-backend-1kn0.onrender.com/api/v1';
+const PRODUCTION_ADMIN_API_BASE_URL = 'https://backend-admin-qe72.onrender.com/api/v1';
 
 const API_BASE_URL =
   trimTrailingSlash(

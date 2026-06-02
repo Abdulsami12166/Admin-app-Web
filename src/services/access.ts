@@ -63,7 +63,7 @@ export const rolePermissions: Record<AdminRole, Permission[]> = {
 };
 
 export function normalizeRole(role?: string): AdminRole {
-  const value = (role || '').toLowerCase().replace(/\s+/g, '-');
+  const value = (role || '').toLowerCase().replace(/[_\s]+/g, '-');
 
   if (value === 'super-admin' || value === 'admin' || value === 'product-manager' || value === 'support') {
     return value;
