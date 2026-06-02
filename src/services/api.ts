@@ -1,7 +1,10 @@
-const REMOTE_ADMIN_API_BASE_URL = 'https://ecommerce-app-backend-1kn0.onrender.com/api/v1';
+const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
 
 const API_BASE_URL =
-  import.meta.env.VITE_ADMIN_API_BASE_URL || (import.meta.env.DEV ? '/api/v1' : REMOTE_ADMIN_API_BASE_URL);
+  trimTrailingSlash(import.meta.env.VITE_ADMIN_API_BASE_URL || '/api/v1');
+
+const SOCKET_BASE_URL =
+  trimTrailingSlash(import.meta.env.VITE_ADMIN_SOCKET_URL || API_BASE_URL.replace(/\/api\/v1$/, ''));
 
 export const ADMIN_TOKEN_KEY = 'ecommerce-admin-web-token';
 export const ADMIN_USER_KEY = 'ecommerce-admin-web-user';
@@ -169,5 +172,5 @@ export const adminApi = {
 };
 
 export function getSocketBaseUrl() {
-  return import.meta.env.VITE_ADMIN_SOCKET_URL || REMOTE_ADMIN_API_BASE_URL.replace('/api/v1', '');
+  return SOCKET_BASE_URL;
 }
