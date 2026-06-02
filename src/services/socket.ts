@@ -1,5 +1,5 @@
 import {io, Socket} from 'socket.io-client';
-import {ADMIN_TOKEN_KEY, getSocketBaseUrl} from './api';
+import {ADMIN_TOKEN_KEY, ADMIN_USER_KEY, getSocketBaseUrl} from './api';
 
 let socket: Socket | null = null;
 
@@ -19,6 +19,14 @@ export function connectAdminSocket(onEvent: (title: string, detail: string) => v
   socket.on('connect', () => {
     socket?.emit('admin:subscribe');
     onEvent('Socket connected', 'Realtime admin channel is active.');
+  });
+
+  socket.on('connect_error', error => {
+    if (String(error.message || '').toLowerCase().includes('token')) {
+      localStorage.removeItem(ADMIN_TOKEN_KEY);
+      localStorage.removeItem(ADMIN_USER_KEY);
+      window.dispatchEvent(new Event('admin-auth-expired'));
+    }
   });
 
   socket.on('disconnect', () => onEvent('Socket disconnected', 'Realtime admin channel paused.'));

@@ -133,6 +133,7 @@ function maskEmail(email?: string) {
 
 export function App() {
   const [user, setUser] = React.useState<AdminUser | null>(() => {
+    if (!localStorage.getItem(ADMIN_TOKEN_KEY)) return null;
     const saved = localStorage.getItem(ADMIN_USER_KEY);
     return saved ? JSON.parse(saved) : null;
   });
@@ -181,7 +182,11 @@ export function App() {
   }, [pushFeed, role]);
 
   React.useEffect(() => {
-    const handleAuthExpired = () => setUser(null);
+    const handleAuthExpired = () => {
+      localStorage.removeItem(ADMIN_TOKEN_KEY);
+      localStorage.removeItem(ADMIN_USER_KEY);
+      setUser(null);
+    };
     window.addEventListener('admin-auth-expired', handleAuthExpired);
     return () => window.removeEventListener('admin-auth-expired', handleAuthExpired);
   }, []);
