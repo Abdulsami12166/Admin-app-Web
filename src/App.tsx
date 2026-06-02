@@ -276,7 +276,7 @@ function LoginScreen({onLoggedIn}: {onLoggedIn: (user: AdminUser) => void}) {
     setLoading(true);
     try {
       const response = await loginAdmin(email.trim(), password);
-      if (!response.token || !response.user) {
+      if (!response?.token || !response.user) {
         throw new Error('Admin login did not return a valid session. Please try again.');
       }
       localStorage.setItem(ADMIN_TOKEN_KEY, response.token);

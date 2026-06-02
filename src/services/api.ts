@@ -122,16 +122,29 @@ async function apiRequest<T>(path: string, options: RequestOptions = {}): Promis
     ...(options.body ? {body: JSON.stringify(options.body)} : {}),
   });
   const text = await response.text();
-  const payload = text ? JSON.parse(text) : null;
+  let payload: unknown = null;
+
+  if (text) {
+    try {
+      payload = JSON.parse(text);
+    } catch {
+      throw new ApiError('Server returned an invalid response. Check the admin API URL.', response.status);
+    }
+  }
 
   if (!response.ok) {
-    const message = payload?.message || payload?.error || `Request failed: ${response.status}`;
+    const errorPayload = payload && typeof payload === 'object' ? payload as {message?: string; error?: string} : null;
+    const message = errorPayload?.message || errorPayload?.error || `Request failed: ${response.status}`;
     if (response.status === 401 || (response.status === 403 && message.toLowerCase().includes('admin access'))) {
       localStorage.removeItem(ADMIN_TOKEN_KEY);
       localStorage.removeItem(ADMIN_USER_KEY);
       window.dispatchEvent(new Event('admin-auth-expired'));
     }
     throw new ApiError(message, response.status);
+  }
+
+  if (!payload) {
+    throw new ApiError('Server returned an empty response. Check the admin API URL.', response.status);
   }
 
   return payload as T;
