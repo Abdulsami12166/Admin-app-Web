@@ -2,12 +2,18 @@ import type {AdminRole} from './api';
 
 export type Permission =
   | 'dashboard:view'
-  | 'rbac:manage'
+  | 'admins:manage'
+  | 'roles:assign'
+  | 'system:configure'
   | 'users:view'
   | 'users:control'
   | 'products:view'
   | 'products:create'
   | 'products:publish'
+  | 'products:delete'
+  | 'categories:manage'
+  | 'inventory:manage'
+  | 'images:upload'
   | 'orders:view'
   | 'orders:update'
   | 'transactions:view'
@@ -24,12 +30,18 @@ export const roleLabels: Record<AdminRole, string> = {
 export const rolePermissions: Record<AdminRole, Permission[]> = {
   'super-admin': [
     'dashboard:view',
-    'rbac:manage',
+    'admins:manage',
+    'roles:assign',
+    'system:configure',
     'users:view',
     'users:control',
     'products:view',
     'products:create',
     'products:publish',
+    'products:delete',
+    'categories:manage',
+    'inventory:manage',
+    'images:upload',
     'orders:view',
     'orders:update',
     'transactions:view',
@@ -43,6 +55,10 @@ export const rolePermissions: Record<AdminRole, Permission[]> = {
     'products:view',
     'products:create',
     'products:publish',
+    'products:delete',
+    'categories:manage',
+    'inventory:manage',
+    'images:upload',
     'orders:view',
     'orders:update',
     'transactions:view',
@@ -54,8 +70,11 @@ export const rolePermissions: Record<AdminRole, Permission[]> = {
     'products:view',
     'products:create',
     'products:publish',
+    'products:delete',
+    'categories:manage',
+    'inventory:manage',
+    'images:upload',
     'orders:view',
-    'orders:update',
     'transactions:view',
     'analytics:view',
   ],

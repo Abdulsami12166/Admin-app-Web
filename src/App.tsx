@@ -19,7 +19,7 @@ type FeedItem = {id: string; title: string; detail: string; createdAt: number};
 
 const tabs: Array<{key: TabKey; label: string; permission: Parameters<typeof can>[1]}> = [
   {key: 'dashboard', label: 'Dashboard', permission: 'dashboard:view'},
-  {key: 'access', label: 'Access', permission: 'rbac:manage'},
+  {key: 'access', label: 'Access', permission: 'admins:manage'},
   {key: 'users', label: 'Users', permission: 'users:view'},
   {key: 'products', label: 'Products', permission: 'products:view'},
   {key: 'orders', label: 'Orders', permission: 'orders:view'},
@@ -29,82 +29,67 @@ const tabs: Array<{key: TabKey; label: string; permission: Parameters<typeof can
 ];
 
 const productCategories = [
-  'Electronics',
   'Mobiles',
-  'Computers',
+  'Laptops',
   'Fashion',
-  'Men Clothing',
-  'Women Clothing',
-  'Kids Clothing',
-  'Footwear',
   'Accessories',
-  'Beauty',
-  'Home & Kitchen',
-  'Sports',
-  'Toys',
-  'Grocery',
+  'Gaming',
+  'Electronics',
 ];
-const categoryConfig: Record<string, {subCategories: string[]; types: string[]; sizes?: string[]}> = {
-  Electronics: {
-    subCategories: ['Audio', 'Wearables', 'Cameras', 'Gaming', 'Smart Home'],
-    types: ['New Arrival', 'Refurbished', 'Premium', 'Budget'],
-  },
+const categoryConfig: Record<string, {subCategories: string[]; attributes: Array<{key: string; label: string; placeholder?: string}>; sizes?: string[]}> = {
   Mobiles: {
-    subCategories: ['Smartphones', 'Feature Phones', 'Tablets', 'Mobile Accessories'],
-    types: ['Android', 'iOS', '5G', 'Budget', 'Flagship'],
+    subCategories: ['Gaming Phones', 'Camera Phones', 'Performance Phones', 'Battery Phones', 'Budget Phones', 'Flagship Phones'],
+    attributes: [
+      {key: 'ram', label: 'RAM', placeholder: '8GB'},
+      {key: 'storage', label: 'Storage', placeholder: '256GB'},
+      {key: 'battery', label: 'Battery', placeholder: '5000mAh'},
+      {key: 'camera', label: 'Camera', placeholder: '64MP'},
+      {key: 'processor', label: 'Processor', placeholder: 'Snapdragon 8 Gen 3'},
+    ],
   },
-  Computers: {
-    subCategories: ['Laptops', 'Desktops', 'Monitors', 'Printers', 'Storage'],
-    types: ['Work', 'Gaming', 'Student', 'Creator'],
+  Laptops: {
+    subCategories: ['Gaming Laptops', 'Performance Laptops', 'Student Laptops', 'Business Laptops', 'Creator Laptops', 'Budget Laptops'],
+    attributes: [
+      {key: 'processor', label: 'Processor', placeholder: 'Intel Core i7'},
+      {key: 'ram', label: 'RAM', placeholder: '16GB'},
+      {key: 'storage', label: 'Storage', placeholder: '1TB SSD'},
+      {key: 'gpu', label: 'GPU', placeholder: 'RTX 4060'},
+      {key: 'displaySize', label: 'Display Size', placeholder: '15.6 inch'},
+    ],
   },
   Fashion: {
-    subCategories: ['Ethnic Wear', 'Western Wear', 'Winterwear', 'Innerwear'],
-    types: ['Casual', 'Formal', 'Party', 'Daily Wear'],
+    subCategories: ['Men', 'Women', 'Kids', 'Footwear', 'Traditional', 'Casual', 'Formal'],
+    attributes: [
+      {key: 'size', label: 'Size', placeholder: 'S, M, L'},
+      {key: 'color', label: 'Color', placeholder: 'Black'},
+      {key: 'material', label: 'Material', placeholder: 'Cotton'},
+      {key: 'brand', label: 'Brand', placeholder: 'Brand name'},
+    ],
     sizes: ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
-  },
-  'Men Clothing': {
-    subCategories: ['Shirts', 'T-Shirts', 'Jeans', 'Jackets', 'Ethnic Wear'],
-    types: ['Casual', 'Formal', 'Winter', 'Sportswear'],
-    sizes: ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
-  },
-  'Women Clothing': {
-    subCategories: ['Dresses', 'Tops', 'Kurtis', 'Coats', 'Jeans'],
-    types: ['Casual', 'Party', 'Office', 'Winter'],
-    sizes: ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
-  },
-  'Kids Clothing': {
-    subCategories: ['Sets', 'T-Shirts', 'Dresses', 'Winterwear'],
-    types: ['Casual', 'School', 'Party'],
-    sizes: ['2Y', '4Y', '6Y', '8Y', '10Y', '12Y'],
-  },
-  Footwear: {
-    subCategories: ['Sneakers', 'Sandals', 'Formal Shoes', 'Boots'],
-    types: ['Casual', 'Sports', 'Formal'],
-    sizes: ['5', '6', '7', '8', '9', '10', '11'],
   },
   Accessories: {
-    subCategories: ['Bags', 'Belts', 'Watches', 'Jewellery'],
-    types: ['Daily Use', 'Premium', 'Gift'],
+    subCategories: ['Watches', 'Headphones', 'Chargers', 'Power Banks', 'Cases'],
+    attributes: [
+      {key: 'brand', label: 'Brand', placeholder: 'Brand name'},
+      {key: 'color', label: 'Color', placeholder: 'Black'},
+      {key: 'material', label: 'Material', placeholder: 'Silicone'},
+    ],
   },
-  Beauty: {
-    subCategories: ['Skincare', 'Haircare', 'Makeup', 'Fragrance', 'Personal Care'],
-    types: ['Daily Use', 'Premium', 'Organic', 'Travel Size'],
+  Gaming: {
+    subCategories: ['Gaming Consoles', 'Gaming Accessories', 'Gaming Laptops', 'Gaming Phones'],
+    attributes: [
+      {key: 'platform', label: 'Platform', placeholder: 'PS5'},
+      {key: 'storage', label: 'Storage', placeholder: '1TB'},
+      {key: 'edition', label: 'Edition', placeholder: 'Standard'},
+    ],
   },
-  'Home & Kitchen': {
-    subCategories: ['Cookware', 'Storage', 'Decor', 'Cleaning', 'Appliances'],
-    types: ['Daily Use', 'Premium', 'Compact', 'Family Pack'],
-  },
-  Sports: {
-    subCategories: ['Fitness', 'Outdoor', 'Team Sports', 'Yoga', 'Cycling'],
-    types: ['Beginner', 'Professional', 'Training', 'Protective'],
-  },
-  Toys: {
-    subCategories: ['Learning', 'Action Figures', 'Board Games', 'Soft Toys'],
-    types: ['Kids', 'Family', 'Educational', 'Gift'],
-  },
-  Grocery: {
-    subCategories: ['Staples', 'Snacks', 'Beverages', 'Organic', 'Household'],
-    types: ['Daily Use', 'Bulk', 'Premium', 'Value Pack'],
+  Electronics: {
+    subCategories: ['Audio', 'Cameras', 'Wearables', 'Smart Home', 'Storage'],
+    attributes: [
+      {key: 'brand', label: 'Brand', placeholder: 'Brand name'},
+      {key: 'model', label: 'Model', placeholder: 'Model number'},
+      {key: 'warranty', label: 'Warranty', placeholder: '1 year'},
+    ],
   },
 };
 
@@ -396,28 +381,32 @@ function Users({users, refreshAll, role}: {users: AdminUser[]; refreshAll: () =>
 
 function Products({products, refreshAll, role, pushFeed}: {products: AdminProduct[]; refreshAll: () => Promise<void>; role: string; pushFeed: (title: string, detail: string) => void}) {
   const [hiddenCategories, setHiddenCategories] = React.useState<string[]>([]);
+  const [imageFiles, setImageFiles] = React.useState<File[]>([]);
+  const [uploadProgress, setUploadProgress] = React.useState(0);
+  const [previewUrls, setPreviewUrls] = React.useState<string[]>([]);
   const [form, setForm] = React.useState({
     title: '',
     description: '',
     category: productCategories[0],
     subCategory: categoryConfig[productCategories[0]].subCategories[0],
-    type: categoryConfig[productCategories[0]].types[0],
     brand: '',
     price: '',
     discountedPrice: '',
     stock: '',
-    image: '',
-    material: '',
-    color: '',
-    gender: 'Unisex',
+    sku: '',
     tags: '',
-    sizes: '',
+    attributes: {} as Record<string, string>,
     isPublished: true,
   });
   const currentConfig = categoryConfig[form.category] || categoryConfig.Accessories;
-  const autoSizes = currentConfig.sizes || [];
-  const showSizeField = autoSizes.length > 0;
   const categories = Array.from(new Set(products.map(product => product.category || 'Uncategorized')));
+  const canCreateProducts = can(role, 'products:create');
+
+  React.useEffect(() => {
+    const nextPreviewUrls = imageFiles.map(file => URL.createObjectURL(file));
+    setPreviewUrls(nextPreviewUrls);
+    return () => nextPreviewUrls.forEach(url => URL.revokeObjectURL(url));
+  }, [imageFiles]);
 
   function updateField(name: string, value: string | boolean) {
     setForm(current => {
@@ -427,8 +416,7 @@ function Products({products, refreshAll, role, pushFeed}: {products: AdminProduc
           ...current,
           category: String(value),
           subCategory: nextConfig.subCategories[0],
-          type: nextConfig.types[0],
-          sizes: (nextConfig.sizes || []).join(', '),
+          attributes: {},
         };
       }
 
@@ -436,36 +424,70 @@ function Products({products, refreshAll, role, pushFeed}: {products: AdminProduc
     });
   }
 
+  function updateAttribute(key: string, value: string) {
+    setForm(current => ({
+      ...current,
+      attributes: {
+        ...current.attributes,
+        [key]: value,
+      },
+    }));
+  }
+
+  function addFiles(files: FileList | null) {
+    const nextFiles = Array.from(files || []).filter(file => file.type.startsWith('image/'));
+    setImageFiles(current => [...current, ...nextFiles].slice(0, 8));
+  }
+
+  function removeImage(index: number) {
+    setImageFiles(current => current.filter((_, itemIndex) => itemIndex !== index));
+  }
+
   async function submit(event: React.FormEvent) {
     event.preventDefault();
-    if (!can(role, 'products:create')) return;
-    const images = form.image.split(',').map(item => item.trim()).filter(Boolean);
-    const selectedSizes = showSizeField
-      ? form.sizes.split(',').map(item => item.trim()).filter(Boolean)
-      : [];
-    await adminApi.createProduct({
-      title: form.title,
-      name: form.title,
-      description: form.description,
-      category: form.category,
-      subCategory: form.subCategory,
-      type: form.type,
-      brand: form.brand,
-      price: Number(form.price),
-      discountedPrice: form.discountedPrice ? Number(form.discountedPrice) : undefined,
-      stock: form.stock ? Number(form.stock) : 0,
-      image: images[0],
-      images,
-      sizes: selectedSizes,
-      material: form.material,
-      color: form.color,
-      gender: form.gender,
-      tags: form.tags.split(',').map(item => item.trim()).filter(Boolean),
-      isPublished: form.isPublished,
-    });
-    pushFeed('Product created', `${form.title} was pushed with ${selectedSizes.length ? `${selectedSizes.length} size options` : 'no size matrix'}.`);
-    setForm(current => ({...current, title: '', description: '', price: '', discountedPrice: '', stock: '', image: '', material: '', color: '', tags: '', sizes: showSizeField ? autoSizes.join(', ') : ''}));
+    if (!canCreateProducts) return;
+    if (!imageFiles.length) {
+      pushFeed('Image required', 'Upload at least one product image before creating a product.');
+      return;
+    }
+
+    const payload = new FormData();
+    payload.append('title', form.title);
+    payload.append('name', form.title);
+    payload.append('description', form.description);
+    payload.append('category', form.category);
+    payload.append('subcategory', form.subCategory);
+    payload.append('subCategory', form.subCategory);
+    payload.append('brand', form.brand || form.attributes.brand || '');
+    payload.append('price', form.price);
+    payload.append('discountedPrice', form.discountedPrice);
+    payload.append('stock', form.stock || '0');
+    payload.append('sku', form.sku);
+    payload.append('tags', form.tags);
+    payload.append('attributes', JSON.stringify(form.attributes));
+    payload.append('inventory', JSON.stringify({sku: form.sku, stock: Number(form.stock || 0)}));
+    payload.append('isPublished', String(form.isPublished));
+    imageFiles.forEach(file => payload.append('images', file));
+
+    setUploadProgress(35);
+    await adminApi.createProduct(payload);
+    setUploadProgress(100);
+    pushFeed('Product created', `${form.title} was published in ${form.category} / ${form.subCategory}.`);
+    setForm(current => ({
+      ...current,
+      title: '',
+      description: '',
+      price: '',
+      discountedPrice: '',
+      stock: '',
+      sku: '',
+      brand: '',
+      tags: '',
+      attributes: {},
+    }));
+    setImageFiles([]);
     await refreshAll();
+    setTimeout(() => setUploadProgress(0), 800);
   }
 
   return (
@@ -488,6 +510,9 @@ function Products({products, refreshAll, role, pushFeed}: {products: AdminProduc
       </Panel>
 
       <Panel title="Add product">
+        {!canCreateProducts ? (
+          <p className="error">Your role can view operations data, but cannot create products.</p>
+        ) : null}
         <form className="product-form" onSubmit={submit}>
           <input required placeholder="Product name" value={form.title} onChange={event => updateField('title', event.target.value)} />
           <textarea required placeholder="Description" value={form.description} onChange={event => updateField('description', event.target.value)} />
@@ -498,43 +523,61 @@ function Products({products, refreshAll, role, pushFeed}: {products: AdminProduc
             <select value={form.subCategory} onChange={event => updateField('subCategory', event.target.value)}>
               {currentConfig.subCategories.map(category => <option key={category}>{category}</option>)}
             </select>
-            <select value={form.type} onChange={event => updateField('type', event.target.value)}>
-              {currentConfig.types.map(type => <option key={type}>{type}</option>)}
-            </select>
             <input placeholder="Brand" value={form.brand} onChange={event => updateField('brand', event.target.value)} />
+            <input placeholder="SKU" value={form.sku} onChange={event => updateField('sku', event.target.value)} />
           </div>
           <div className="form-grid">
             <input required type="number" placeholder="Price" value={form.price} onChange={event => updateField('price', event.target.value)} />
             <input type="number" placeholder="Discounted price" value={form.discountedPrice} onChange={event => updateField('discountedPrice', event.target.value)} />
             <input type="number" placeholder="Stock" value={form.stock} onChange={event => updateField('stock', event.target.value)} />
-            <input placeholder="Color" value={form.color} onChange={event => updateField('color', event.target.value)} />
-          </div>
-          <input placeholder="Image upload URL(s), comma separated" value={form.image} onChange={event => updateField('image', event.target.value)} />
-          <div className="upload-box">
-            <strong>Image upload ready</strong>
-            <span>Paste hosted URLs now. Backend multipart upload endpoint can be connected here later.</span>
+            <input placeholder="Tags: premium, launch" value={form.tags} onChange={event => updateField('tags', event.target.value)} />
           </div>
           <div className="form-grid">
-            <input placeholder="Material" value={form.material} onChange={event => updateField('material', event.target.value)} />
-            <select value={form.gender} onChange={event => updateField('gender', event.target.value)}>
-              {['Unisex', 'Men', 'Women', 'Kids'].map(value => <option key={value}>{value}</option>)}
-            </select>
-            <input placeholder="Tags: summer, cotton" value={form.tags} onChange={event => updateField('tags', event.target.value)} />
+            {currentConfig.attributes.map(attribute => (
+              <input
+                key={attribute.key}
+                placeholder={`${attribute.label}${attribute.placeholder ? ` (${attribute.placeholder})` : ''}`}
+                value={form.attributes[attribute.key] || ''}
+                onChange={event => updateAttribute(attribute.key, event.target.value)}
+              />
+            ))}
           </div>
-          {showSizeField ? (
-            <div className="size-box">
-              <strong>Sizes for {form.category}</strong>
-              <input placeholder="Sizes: S, M, L, XL" value={form.sizes} onChange={event => updateField('sizes', event.target.value)} />
-              <div>{autoSizes.map(size => <span key={size}>{size}</span>)}</div>
+          <label
+            className="upload-box"
+            onDragOver={event => event.preventDefault()}
+            onDrop={event => {
+              event.preventDefault();
+              addFiles(event.dataTransfer.files);
+            }}>
+            <strong>Upload product images</strong>
+            <span>Drop images here or click to choose up to 8 images. JPEG, PNG, WebP, and AVIF are accepted.</span>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/avif"
+              multiple
+              onChange={event => addFiles(event.target.files)}
+            />
+          </label>
+          {previewUrls.length ? (
+            <div className="image-preview-grid">
+              {previewUrls.map((url, index) => (
+                <button type="button" className="image-preview" key={url} onClick={() => removeImage(index)}>
+                  <img src={url} alt={`Product preview ${index + 1}`} />
+                  <span>Remove</span>
+                </button>
+              ))}
             </div>
-          ) : (
-            <div className="size-box muted">No automatic size UI for this category.</div>
-          )}
+          ) : null}
+          {uploadProgress ? (
+            <div className="upload-progress">
+              <span style={{width: `${uploadProgress}%`}} />
+            </div>
+          ) : null}
           <label className="check-line">
             <input type="checkbox" checked={form.isPublished} onChange={event => updateField('isPublished', event.target.checked)} />
             Publish product immediately
           </label>
-          <button disabled={!can(role, 'products:create')}>Create product</button>
+          <button disabled={!canCreateProducts}>Create product</button>
         </form>
       </Panel>
 

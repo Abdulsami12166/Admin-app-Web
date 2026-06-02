@@ -117,13 +117,19 @@ class ApiError extends Error {
 
 async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const token = options.auth ? localStorage.getItem(ADMIN_TOKEN_KEY) : null;
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
+  const requestBody: BodyInit | undefined = options.body
+    ? isFormData
+      ? options.body as FormData
+      : JSON.stringify(options.body)
+    : undefined;
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: options.method || 'GET',
     headers: {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : {'Content-Type': 'application/json'}),
       ...(token ? {Authorization: `Bearer ${token}`} : {}),
     },
-    ...(options.body ? {body: JSON.stringify(options.body)} : {}),
+    ...(requestBody ? {body: requestBody} : {}),
   });
   const text = await response.text();
   let payload: unknown = null;
@@ -169,7 +175,7 @@ export const adminApi = {
   unblockUser: (userId: string) => apiRequest(`/admin/users/${userId}/unblock`, {method: 'POST', auth: true}),
   forceLogoutUser: (userId: string) => apiRequest(`/admin/users/${userId}/logout`, {method: 'POST', auth: true}),
   getProducts: () => apiRequest<{data: {products: AdminProduct[]}}>('/admin/products', {auth: true}),
-  createProduct: (body: Record<string, unknown>) =>
+  createProduct: (body: Record<string, unknown> | FormData) =>
     apiRequest<{data: {product: AdminProduct}}>('/admin/products', {
       method: 'POST',
       body,
