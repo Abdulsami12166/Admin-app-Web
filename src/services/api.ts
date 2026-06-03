@@ -1,3 +1,5 @@
+import type {Permission, RolePermissionMatrix} from './access';
+
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
 const PRODUCTION_ADMIN_API_BASE_URL = 'https://backend-admin-qe72.onrender.com/api/v1';
 
@@ -20,6 +22,7 @@ export type AdminUser = {
   email?: string;
   phone?: string;
   role?: AdminRole | string;
+  permissions?: Permission[] | string[];
   blocked?: boolean;
   isVerified?: boolean;
   lastLoginAt?: string;
@@ -100,7 +103,7 @@ export type DashboardMetrics = {
 };
 
 type RequestOptions = {
-  method?: 'GET' | 'POST' | 'PATCH';
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH';
   body?: unknown;
   auth?: boolean;
 };
@@ -168,6 +171,27 @@ export async function loginAdmin(email: string, password: string) {
 }
 
 export const adminApi = {
+  getAccessControl: () => apiRequest<{
+    data: {
+      roles: AdminRole[];
+      managedRoles: AdminRole[];
+      permissions: Permission[];
+      permissionsByRole: RolePermissionMatrix;
+      admins: AdminUser[];
+    };
+  }>('/admin/access-control', {auth: true}),
+  updateRolePermissions: (role: string, permissions: Permission[]) =>
+    apiRequest<{data: {permissionsByRole: RolePermissionMatrix}}>(`/admin/roles/${role}/permissions`, {
+      method: 'PUT',
+      body: {permissions},
+      auth: true,
+    }),
+  createAdmin: (body: {name: string; email: string; password: string; role: string}) =>
+    apiRequest<{data: {admin: AdminUser}}>('/admin/admins', {
+      method: 'POST',
+      body,
+      auth: true,
+    }),
   getMetrics: () => apiRequest<{data: DashboardMetrics}>('/admin/dashboard/metrics', {auth: true}),
   getActivities: () => apiRequest<{data: {activities: ActivityItem[]}}>('/admin/activities', {auth: true}),
   getUsers: () => apiRequest<{data: {users: AdminUser[]}}>('/admin/users', {auth: true}),

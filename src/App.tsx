@@ -11,7 +11,18 @@ import {
   adminApi,
   loginAdmin,
 } from './services/api';
-import {can, normalizeRole, roleLabels, rolePermissions} from './services/access';
+import {
+  allPermissions,
+  applyRolePermissions,
+  can,
+  managedAdminRoles,
+  normalizeRole,
+  type Permission,
+  permissionLabels,
+  roleLabels,
+  rolePermissions,
+  type RolePermissionMatrix,
+} from './services/access';
 import {connectAdminSocket} from './services/socket';
 
 type TabKey = 'dashboard' | 'access' | 'users' | 'products' | 'orders' | 'transactions' | 'analytics' | 'activity';
@@ -129,6 +140,8 @@ export function App() {
   const [orders, setOrders] = React.useState<AdminOrder[]>([]);
   const [transactions, setTransactions] = React.useState<AdminTransaction[]>([]);
   const [activities, setActivities] = React.useState<ActivityItem[]>([]);
+  const [permissionMatrix, setPermissionMatrix] = React.useState<RolePermissionMatrix>(rolePermissions);
+  const [managedAdmins, setManagedAdmins] = React.useState<AdminUser[]>([]);
   const [feed, setFeed] = React.useState<FeedItem[]>([]);
   const [loading, setLoading] = React.useState(false);
   const role = normalizeRole(user?.role);
@@ -137,11 +150,20 @@ export function App() {
     setFeed(current => [{id: `${Date.now()}-${Math.random()}`, title, detail, createdAt: Date.now()}, ...current].slice(0, 40));
   }, []);
 
+  React.useEffect(() => {
+    if (user?.permissions?.length) {
+      const nextMatrix: RolePermissionMatrix = {[role]: user.permissions as Permission[]};
+      applyRolePermissions(nextMatrix);
+      setPermissionMatrix(current => ({...current, ...nextMatrix}));
+    }
+  }, [role, user?.permissions]);
+
   const refreshAll = React.useCallback(async () => {
     setLoading(true);
     try {
       const results = await Promise.allSettled([
         adminApi.getMetrics(),
+        can(role, 'admins:manage') ? adminApi.getAccessControl() : Promise.resolve(null),
         can(role, 'users:view') ? adminApi.getUsers() : Promise.resolve({data: {users: []}}),
         can(role, 'products:view') ? adminApi.getProducts() : Promise.resolve({data: {products: []}}),
         can(role, 'orders:view') ? adminApi.getOrders() : Promise.resolve({data: {orders: []}}),
@@ -149,8 +171,13 @@ export function App() {
         can(role, 'activity:view') ? adminApi.getActivities() : Promise.resolve({data: {activities: []}}),
       ]);
 
-      const [metricResult, usersResult, productsResult, ordersResult, transactionsResult, activitiesResult] = results;
+      const [metricResult, accessResult, usersResult, productsResult, ordersResult, transactionsResult, activitiesResult] = results;
       if (metricResult.status === 'fulfilled') setMetrics(metricResult.value.data || {});
+      if (accessResult.status === 'fulfilled' && accessResult.value) {
+        applyRolePermissions(accessResult.value.data?.permissionsByRole);
+        setPermissionMatrix(accessResult.value.data?.permissionsByRole || rolePermissions);
+        setManagedAdmins(accessResult.value.data?.admins || []);
+      }
       if (usersResult.status === 'fulfilled') setUsers(usersResult.value.data?.users || []);
       if (productsResult.status === 'fulfilled') setProducts(productsResult.value.data?.products || []);
       if (ordersResult.status === 'fulfilled') setOrders(ordersResult.value.data?.orders || []);
@@ -237,7 +264,19 @@ export function App() {
         </header>
 
         {activeTab === 'dashboard' && <Dashboard metrics={metrics} feed={feed} />}
-        {activeTab === 'access' && <Access role={role} users={users} activities={activities} />}
+        {activeTab === 'access' && (
+          <Access
+            role={role}
+            users={users}
+            activities={activities}
+            permissionMatrix={permissionMatrix}
+            managedAdmins={managedAdmins}
+            onUpdated={async message => {
+              pushFeed('Access updated', message);
+              await refreshAll();
+            }}
+          />
+        )}
         {activeTab === 'users' && <Users users={users} refreshAll={refreshAll} role={role} />}
         {activeTab === 'products' && <Products products={products} refreshAll={refreshAll} role={role} pushFeed={pushFeed} />}
         {activeTab === 'orders' && <Orders orders={orders} refreshAll={refreshAll} role={role} />}
@@ -307,24 +346,152 @@ function Dashboard({metrics, feed}: {metrics: DashboardMetrics; feed: FeedItem[]
   );
 }
 
-function Access({role, users, activities}: {role: ReturnType<typeof normalizeRole>; users: AdminUser[]; activities: ActivityItem[]}) {
+function Access({
+  role,
+  users,
+  activities,
+  permissionMatrix,
+  managedAdmins,
+  onUpdated,
+}: {
+  role: ReturnType<typeof normalizeRole>;
+  users: AdminUser[];
+  activities: ActivityItem[];
+  permissionMatrix: RolePermissionMatrix;
+  managedAdmins: AdminUser[];
+  onUpdated: (message: string) => Promise<void>;
+}) {
+  const [draftMatrix, setDraftMatrix] = React.useState<RolePermissionMatrix>(permissionMatrix);
+  const [savingRole, setSavingRole] = React.useState<string>('');
+  const [newAdmin, setNewAdmin] = React.useState({
+    name: '',
+    email: '',
+    password: '',
+    role: managedAdminRoles[0],
+  });
+  const subAdmins = managedAdmins.filter(admin => managedAdminRoles.includes(normalizeRole(admin.role)));
+
+  React.useEffect(() => {
+    setDraftMatrix(permissionMatrix);
+  }, [permissionMatrix]);
+
+  function togglePermission(roleKey: ReturnType<typeof normalizeRole>, permission: Permission) {
+    setDraftMatrix(current => {
+      const currentPermissions = current[roleKey] || [];
+      const nextPermissions = currentPermissions.includes(permission)
+        ? currentPermissions.filter(item => item !== permission)
+        : [...currentPermissions, permission];
+
+      return {
+        ...current,
+        [roleKey]: allPermissions.filter(item => nextPermissions.includes(item)),
+      };
+    });
+  }
+
+  async function saveRole(roleKey: ReturnType<typeof normalizeRole>) {
+    setSavingRole(roleKey);
+    try {
+      const response = await adminApi.updateRolePermissions(roleKey, draftMatrix[roleKey] || []);
+      applyRolePermissions(response.data.permissionsByRole);
+      await onUpdated(`${roleLabels[roleKey]} permissions saved.`);
+    } finally {
+      setSavingRole('');
+    }
+  }
+
+  async function submitAdmin(event: React.FormEvent) {
+    event.preventDefault();
+    const response = await adminApi.createAdmin(newAdmin);
+    setNewAdmin({name: '', email: '', password: '', role: managedAdminRoles[0]});
+    await onUpdated(`${response.data.admin.email} created as ${roleLabels[normalizeRole(response.data.admin.role)]}.`);
+  }
+
   return (
     <section className="grid-two">
       <Panel title="Role & access manager">
-        {Object.entries(rolePermissions).map(([roleKey, permissions]) => (
+        <article className="row-card">
+          <strong>{roleLabels['super-admin']}</strong>
+          <span>Full access is always enabled and cannot be restricted.</span>
+        </article>
+        {managedAdminRoles.map(roleKey => (
           <article className="row-card" key={roleKey}>
-            <strong>{roleLabels[roleKey as ReturnType<typeof normalizeRole>]}</strong>
-            <span>{permissions.join(', ')}</span>
+            <div className="split">
+              <strong>{roleLabels[roleKey]}</strong>
+              <button
+                type="button"
+                className="secondary"
+                disabled={savingRole === roleKey}
+                onClick={() => saveRole(roleKey)}>
+                {savingRole === roleKey ? 'Saving...' : 'Save permissions'}
+              </button>
+            </div>
+            <div className="permission-grid">
+              {allPermissions
+                .filter(permission => !['admins:manage', 'roles:assign', 'system:configure'].includes(permission))
+                .map(permission => (
+                  <label className="permission-check" key={`${roleKey}-${permission}`}>
+                    <input
+                      type="checkbox"
+                      checked={(draftMatrix[roleKey] || []).includes(permission)}
+                      onChange={() => togglePermission(roleKey, permission)}
+                    />
+                    <span>{permissionLabels[permission]}</span>
+                  </label>
+                ))}
+            </div>
           </article>
         ))}
+      </Panel>
+      <Panel title="Create sub admin">
+        <form className="product-form" onSubmit={submitAdmin}>
+          <input
+            required
+            placeholder="Full name"
+            value={newAdmin.name}
+            onChange={event => setNewAdmin(current => ({...current, name: event.target.value}))}
+          />
+          <input
+            required
+            type="email"
+            placeholder="Admin email"
+            value={newAdmin.email}
+            onChange={event => setNewAdmin(current => ({...current, email: event.target.value}))}
+          />
+          <input
+            required
+            type="password"
+            minLength={10}
+            placeholder="Temporary password"
+            value={newAdmin.password}
+            onChange={event => setNewAdmin(current => ({...current, password: event.target.value}))}
+          />
+          <select
+            value={newAdmin.role}
+            onChange={event => setNewAdmin(current => ({...current, role: normalizeRole(event.target.value)}))}>
+            {managedAdminRoles.map(roleKey => (
+              <option key={roleKey} value={roleKey}>{roleLabels[roleKey]}</option>
+            ))}
+          </select>
+          <button type="submit">Create admin</button>
+        </form>
+        <div className="card-list access-list">
+          {subAdmins.map(admin => (
+            <article className="data-card" key={getId(admin) || admin.email}>
+              <strong>{admin.name || 'Unnamed admin'}</strong>
+              <span>{maskEmail(admin.email)} | {roleLabels[normalizeRole(admin.role)]}</span>
+              <small>{admin.blocked ? 'Blocked' : 'Active'} | Last login: {formatDate(admin.lastLoginAt)}</small>
+            </article>
+          ))}
+        </div>
       </Panel>
       <Panel title="Current admin session">
         <div className="check-list">
           <span>✓ Current role: {roleLabels[role]}</span>
-          <span>✓ Admin users monitored: {users.filter(item => normalizeRole(item.role) === 'admin' || normalizeRole(item.role) === 'super-admin').length || 1}</span>
+          <span>✓ Admin users monitored: {subAdmins.length || users.filter(item => normalizeRole(item.role) === 'admin' || normalizeRole(item.role) === 'super-admin').length || 1}</span>
           <span>✓ Token revocation: logout + force logout actions</span>
           <span>✓ Audit entries loaded: {activities.length}</span>
-          <span>✓ Least privilege: UI actions are hidden by role</span>
+          <span>✓ Least privilege: permissions are stored in MongoDB and applied to API routes</span>
         </div>
       </Panel>
     </section>
