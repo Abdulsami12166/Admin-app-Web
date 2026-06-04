@@ -238,9 +238,9 @@ export const adminApi = {
       body,
       auth: true,
     }),
-  createVariant: (productId: string, body: AdminVariant) =>
+  createVariant: (productId: string, body: AdminVariant | FormData) =>
     apiRequest(`/admin/products/${productId}/variants`, {method: 'POST', body, auth: true}),
-  updateVariant: (productId: string, variantId: string, body: AdminVariant) =>
+  updateVariant: (productId: string, variantId: string, body: AdminVariant | FormData) =>
     apiRequest(`/admin/products/${productId}/variants/${variantId}`, {method: 'PATCH', body, auth: true}),
   deleteVariant: (productId: string, variantId: string) =>
     apiRequest(`/admin/products/${productId}/variants/${variantId}`, {method: 'DELETE', auth: true}),

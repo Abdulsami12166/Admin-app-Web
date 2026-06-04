@@ -556,15 +556,17 @@ function Users({users, refreshAll, role}: {users: AdminUser[]; refreshAll: () =>
 }
 
 function VariantManager({product, refreshAll, pushFeed}: {product: AdminProduct; refreshAll: () => Promise<void>; pushFeed: (title: string, detail: string) => void}) {
-  const emptyDraft = {name: '', value: '', price: '', stock: '', sku: '', attributes: ''};
+  const emptyDraft = {name: '', value: '', color: '#000000', price: '', stock: '', sku: '', attributes: ''};
   const [editingId, setEditingId] = React.useState('');
   const [draft, setDraft] = React.useState(emptyDraft);
+  const [variantImage, setVariantImage] = React.useState<File | null>(null);
 
   function editVariant(variant: AdminVariant) {
     setEditingId(variant._id || '');
     setDraft({
       name: variant.name || '',
       value: variant.value || '',
+      color: String(variant.attributes?.color || '#000000'),
       price: variant.price === undefined ? '' : String(variant.price),
       stock: String(variant.stock ?? 0),
       sku: variant.sku || '',
@@ -578,6 +580,7 @@ function VariantManager({product, refreshAll, pushFeed}: {product: AdminProduct;
       if (key?.trim() && valueParts.join(':').trim()) next[key.trim()] = valueParts.join(':').trim();
       return next;
     }, {});
+    if (draft.color) attributes.color = draft.color;
     return {
       name: draft.name,
       value: draft.value,
@@ -590,11 +593,18 @@ function VariantManager({product, refreshAll, pushFeed}: {product: AdminProduct;
 
   async function saveVariant(event: React.FormEvent) {
     event.preventDefault();
-    if (editingId) await adminApi.updateVariant(product._id, editingId, buildPayload());
-    else await adminApi.createVariant(product._id, buildPayload());
+    const payload = buildPayload();
+    const body = new FormData();
+    Object.entries(payload).forEach(([key, value]) => {
+      if (value !== undefined) body.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+    });
+    if (variantImage) body.append('images', variantImage);
+    if (editingId) await adminApi.updateVariant(product._id, editingId, body);
+    else await adminApi.createVariant(product._id, body);
     pushFeed('Variant saved', `${product.title || product.name || 'Product'} variants were updated.`);
     setEditingId('');
     setDraft(emptyDraft);
+    setVariantImage(null);
     await refreshAll();
   }
 
@@ -610,7 +620,10 @@ function VariantManager({product, refreshAll, pushFeed}: {product: AdminProduct;
       <strong>Variants</strong>
       {(product.variants || []).map(variant => (
         <div className="variant-row" key={variant._id || `${variant.name}-${variant.value}`}>
-          <span>{variant.name || 'Variant'}: {variant.value || 'Default'} | SKU {variant.sku || 'n/a'} | Stock {variant.stock ?? 0} | ₹{variant.price ?? product.price ?? 0}</span>
+          <span>
+            {variant.attributes?.color ? <i className="color-swatch" style={{backgroundColor: String(variant.attributes.color)}} /> : null}
+            {variant.name || 'Variant'}: {variant.value || 'Default'} | SKU {variant.sku || 'n/a'} | Stock {variant.stock ?? 0} | ₹{variant.price ?? product.price ?? 0}
+          </span>
           <div>
             <button className="secondary" onClick={() => editVariant(variant)}>Edit</button>
             <button className="secondary danger-text" onClick={() => deleteVariant(variant)}>Delete</button>
@@ -620,12 +633,14 @@ function VariantManager({product, refreshAll, pushFeed}: {product: AdminProduct;
       <form className="variant-form" onSubmit={saveVariant}>
         <input required placeholder="Variant name (Memory / Size)" value={draft.name} onChange={event => setDraft(current => ({...current, name: event.target.value}))} />
         <input required placeholder="Value (8GB / 512GB / Black)" value={draft.value} onChange={event => setDraft(current => ({...current, value: event.target.value}))} />
+        <label className="color-field">Color <input type="color" value={draft.color} onChange={event => setDraft(current => ({...current, color: event.target.value}))} /></label>
         <input type="number" min="0" placeholder="Price" value={draft.price} onChange={event => setDraft(current => ({...current, price: event.target.value}))} />
         <input type="number" min="0" placeholder="Stock" value={draft.stock} onChange={event => setDraft(current => ({...current, stock: event.target.value}))} />
         <input placeholder="SKU" value={draft.sku} onChange={event => setDraft(current => ({...current, sku: event.target.value}))} />
         <input placeholder="Attributes: ram: 8GB, storage: 512GB, color: Black" value={draft.attributes} onChange={event => setDraft(current => ({...current, attributes: event.target.value}))} />
+        <label className="variant-image-field">Variant image <input type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={event => setVariantImage(event.target.files?.[0] || null)} /></label>
         <button>{editingId ? 'Update variant' : 'Add variant'}</button>
-        {editingId ? <button type="button" className="secondary" onClick={() => { setEditingId(''); setDraft(emptyDraft); }}>Cancel</button> : null}
+        {editingId ? <button type="button" className="secondary" onClick={() => { setEditingId(''); setDraft(emptyDraft); setVariantImage(null); }}>Cancel</button> : null}
       </form>
     </div>
   );

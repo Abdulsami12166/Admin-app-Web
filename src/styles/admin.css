@@ -350,6 +350,35 @@ td small,
   gap: 0.55rem;
 }
 
+.color-field,
+.variant-image-field {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: #9fb6cb;
+  font-weight: 700;
+}
+
+.color-field input {
+  width: 64px;
+  height: 44px;
+  padding: 0.25rem;
+}
+
+.variant-image-field input {
+  padding: 0.55rem;
+}
+
+.color-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 0.45rem;
+  border: 1px solid #eef4fb;
+  border-radius: 50%;
+  vertical-align: -2px;
+}
+
 .table-card {
   overflow: hidden;
 }
