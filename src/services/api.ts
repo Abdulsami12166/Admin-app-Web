@@ -47,6 +47,20 @@ export type AdminProduct = {
   sizes?: string[];
   isPublished?: boolean;
   images?: string[];
+  attributes?: Record<string, unknown>;
+  specifications?: Record<string, unknown>;
+  variants?: AdminVariant[];
+};
+
+export type AdminVariant = {
+  _id?: string;
+  name?: string;
+  value?: string;
+  attributes?: Record<string, unknown>;
+  price?: number;
+  stock?: number;
+  sku?: string;
+  images?: string[];
 };
 
 export type AdminOrder = {
@@ -63,6 +77,7 @@ export type AdminOrder = {
   createdAt?: string;
   user?: AdminUser;
   items?: Array<{title?: string; quantity?: number}>;
+  statusHistory?: Array<{status: string; label?: string; timestamp?: string}>;
 };
 
 export type AdminTransaction = Pick<
@@ -223,6 +238,12 @@ export const adminApi = {
       body,
       auth: true,
     }),
+  createVariant: (productId: string, body: AdminVariant) =>
+    apiRequest(`/admin/products/${productId}/variants`, {method: 'POST', body, auth: true}),
+  updateVariant: (productId: string, variantId: string, body: AdminVariant) =>
+    apiRequest(`/admin/products/${productId}/variants/${variantId}`, {method: 'PATCH', body, auth: true}),
+  deleteVariant: (productId: string, variantId: string) =>
+    apiRequest(`/admin/products/${productId}/variants/${variantId}`, {method: 'DELETE', auth: true}),
   getOrders: () => apiRequest<{data: {orders: AdminOrder[]}}>('/admin/orders', {auth: true}),
   getTransactions: async () => {
     const response = await apiRequest<{data: {orders: AdminOrder[]}}>('/admin/orders', {auth: true});

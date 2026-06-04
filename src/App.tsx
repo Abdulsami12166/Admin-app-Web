@@ -3,6 +3,7 @@ import {
   ActivityItem,
   AdminOrder,
   AdminProduct,
+  AdminVariant,
   AdminTransaction,
   AdminUser,
   ADMIN_TOKEN_KEY,
@@ -104,19 +105,6 @@ const categoryConfig: Record<string, {subCategories: string[]; attributes: Array
   },
 };
 
-const nextStatusMap: Record<string, string> = {
-  pending: 'processing',
-  paid: 'order-confirmed',
-  processing: 'order-confirmed',
-  'order-confirmed': 'packed',
-  packed: 'shipping',
-  shipping: 'near-delivery',
-  'near-delivery': 'delivered',
-  shipped: 'delivered',
-  delivered: 'delivered',
-  cancelled: 'cancelled',
-};
-
 const orderStatusLabels: Record<string, string> = {
   pending: 'Pending',
   paid: 'Paid',
@@ -124,7 +112,9 @@ const orderStatusLabels: Record<string, string> = {
   'order-confirmed': 'Order Confirmed',
   packed: 'Packed',
   shipping: 'Shipping',
+  shipped: 'Shipped',
   'near-delivery': 'Near Delivery',
+  'out-for-delivery': 'Out For Delivery',
   delivered: 'Delivered',
   cancelled: 'Cancelled',
 };
@@ -565,6 +555,82 @@ function Users({users, refreshAll, role}: {users: AdminUser[]; refreshAll: () =>
   );
 }
 
+function VariantManager({product, refreshAll, pushFeed}: {product: AdminProduct; refreshAll: () => Promise<void>; pushFeed: (title: string, detail: string) => void}) {
+  const emptyDraft = {name: '', value: '', price: '', stock: '', sku: '', attributes: ''};
+  const [editingId, setEditingId] = React.useState('');
+  const [draft, setDraft] = React.useState(emptyDraft);
+
+  function editVariant(variant: AdminVariant) {
+    setEditingId(variant._id || '');
+    setDraft({
+      name: variant.name || '',
+      value: variant.value || '',
+      price: variant.price === undefined ? '' : String(variant.price),
+      stock: String(variant.stock ?? 0),
+      sku: variant.sku || '',
+      attributes: Object.entries(variant.attributes || {}).map(([key, value]) => `${key}: ${String(value)}`).join(', '),
+    });
+  }
+
+  function buildPayload(): AdminVariant {
+    const attributes = draft.attributes.split(',').reduce<Record<string, string>>((next, item) => {
+      const [key, ...valueParts] = item.split(':');
+      if (key?.trim() && valueParts.join(':').trim()) next[key.trim()] = valueParts.join(':').trim();
+      return next;
+    }, {});
+    return {
+      name: draft.name,
+      value: draft.value,
+      price: draft.price === '' ? undefined : Number(draft.price),
+      stock: Number(draft.stock || 0),
+      sku: draft.sku,
+      attributes,
+    };
+  }
+
+  async function saveVariant(event: React.FormEvent) {
+    event.preventDefault();
+    if (editingId) await adminApi.updateVariant(product._id, editingId, buildPayload());
+    else await adminApi.createVariant(product._id, buildPayload());
+    pushFeed('Variant saved', `${product.title || product.name || 'Product'} variants were updated.`);
+    setEditingId('');
+    setDraft(emptyDraft);
+    await refreshAll();
+  }
+
+  async function deleteVariant(variant: AdminVariant) {
+    if (!variant._id || !window.confirm(`Delete variant ${variant.value || variant.sku || ''}?`)) return;
+    await adminApi.deleteVariant(product._id, variant._id);
+    pushFeed('Variant deleted', `${variant.value || variant.sku || 'Variant'} was removed.`);
+    await refreshAll();
+  }
+
+  return (
+    <div className="variant-manager">
+      <strong>Variants</strong>
+      {(product.variants || []).map(variant => (
+        <div className="variant-row" key={variant._id || `${variant.name}-${variant.value}`}>
+          <span>{variant.name || 'Variant'}: {variant.value || 'Default'} | SKU {variant.sku || 'n/a'} | Stock {variant.stock ?? 0} | ₹{variant.price ?? product.price ?? 0}</span>
+          <div>
+            <button className="secondary" onClick={() => editVariant(variant)}>Edit</button>
+            <button className="secondary danger-text" onClick={() => deleteVariant(variant)}>Delete</button>
+          </div>
+        </div>
+      ))}
+      <form className="variant-form" onSubmit={saveVariant}>
+        <input required placeholder="Variant name (Memory / Size)" value={draft.name} onChange={event => setDraft(current => ({...current, name: event.target.value}))} />
+        <input required placeholder="Value (8GB / 512GB / Black)" value={draft.value} onChange={event => setDraft(current => ({...current, value: event.target.value}))} />
+        <input type="number" min="0" placeholder="Price" value={draft.price} onChange={event => setDraft(current => ({...current, price: event.target.value}))} />
+        <input type="number" min="0" placeholder="Stock" value={draft.stock} onChange={event => setDraft(current => ({...current, stock: event.target.value}))} />
+        <input placeholder="SKU" value={draft.sku} onChange={event => setDraft(current => ({...current, sku: event.target.value}))} />
+        <input placeholder="Attributes: ram: 8GB, storage: 512GB, color: Black" value={draft.attributes} onChange={event => setDraft(current => ({...current, attributes: event.target.value}))} />
+        <button>{editingId ? 'Update variant' : 'Add variant'}</button>
+        {editingId ? <button type="button" className="secondary" onClick={() => { setEditingId(''); setDraft(emptyDraft); }}>Cancel</button> : null}
+      </form>
+    </div>
+  );
+}
+
 function Products({products, refreshAll, role, pushFeed}: {products: AdminProduct[]; refreshAll: () => Promise<void>; role: string; pushFeed: (title: string, detail: string) => void}) {
   const [hiddenCategories, setHiddenCategories] = React.useState<string[]>([]);
   const [imageFiles, setImageFiles] = React.useState<File[]>([]);
@@ -844,6 +910,7 @@ function Products({products, refreshAll, role, pushFeed}: {products: AdminProduc
                 onClick={() => deleteProduct(product)}>
                 Delete product
               </button>
+              {canCreateProducts ? <VariantManager product={product} refreshAll={refreshAll} pushFeed={pushFeed} /> : null}
               <span>Stock {product.stock || 0} • ₹{product.price || 0} • {product.isPublished ? 'Published' : 'Hidden'}</span>
             </article>
           ))}
@@ -854,9 +921,9 @@ function Products({products, refreshAll, role, pushFeed}: {products: AdminProduc
 }
 
 function Orders({orders, refreshAll, role}: {orders: AdminOrder[]; refreshAll: () => Promise<void>; role: string}) {
-  async function advance(order: AdminOrder) {
+  async function updateStatus(order: AdminOrder, orderStatus: string) {
     if (!can(role, 'orders:update')) return;
-    await adminApi.updateOrderStatus(order._id, nextStatusMap[order.orderStatus || 'pending'] || 'processing');
+    await adminApi.updateOrderStatus(order._id, orderStatus);
     await refreshAll();
   }
 
@@ -872,7 +939,17 @@ function Orders({orders, refreshAll, role}: {orders: AdminOrder[]; refreshAll: (
                 <td>{order.orderStatus || 'pending'}</td>
                 <td>{order.items?.map(item => `${item.quantity || 0}x ${item.title || 'item'}`).join(', ') || 'n/a'}</td>
                 <td>{formatDate(order.createdAt)}</td>
-                <td><button disabled={!can(role, 'orders:update')} onClick={() => advance(order)}>Advance status</button></td>
+                <td>
+                  <select
+                    disabled={!can(role, 'orders:update')}
+                    value={order.orderStatus || 'order-confirmed'}
+                    onChange={event => updateStatus(order, event.target.value)}>
+                    {['order-confirmed', 'packed', 'shipped', 'out-for-delivery', 'delivered'].map(status => (
+                      <option key={status} value={status}>{orderStatusLabels[status] || status}</option>
+                    ))}
+                  </select>
+                  <small>{order.statusHistory?.map(item => item.label || item.status).join(' → ') || 'No checkpoints yet'}</small>
+                </td>
               </tr>
             ))}
           </tbody>
