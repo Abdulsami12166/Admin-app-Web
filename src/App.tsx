@@ -106,11 +106,27 @@ const categoryConfig: Record<string, {subCategories: string[]; attributes: Array
 
 const nextStatusMap: Record<string, string> = {
   pending: 'processing',
-  paid: 'processing',
-  processing: 'shipped',
+  paid: 'order-confirmed',
+  processing: 'order-confirmed',
+  'order-confirmed': 'packed',
+  packed: 'shipping',
+  shipping: 'near-delivery',
+  'near-delivery': 'delivered',
   shipped: 'delivered',
   delivered: 'delivered',
   cancelled: 'cancelled',
+};
+
+const orderStatusLabels: Record<string, string> = {
+  pending: 'Pending',
+  paid: 'Paid',
+  processing: 'Processing',
+  'order-confirmed': 'Order Confirmed',
+  packed: 'Packed',
+  shipping: 'Shipping',
+  'near-delivery': 'Near Delivery',
+  delivered: 'Delivered',
+  cancelled: 'Cancelled',
 };
 
 function getId(item: {_id?: string; id?: string}) {
@@ -502,6 +518,8 @@ function Users({users, refreshAll, role}: {users: AdminUser[]; refreshAll: () =>
   async function toggle(user: AdminUser) {
     const id = getId(user);
     if (!id || !can(role, 'users:control')) return;
+    const action = user.blocked ? 'Unblock' : 'Block';
+    if (!window.confirm(`${action} ${user.name || user.email || 'this user'}?`)) return;
     if (user.blocked) await adminApi.unblockUser(id);
     else await adminApi.blockUser(id);
     await refreshAll();
@@ -510,6 +528,7 @@ function Users({users, refreshAll, role}: {users: AdminUser[]; refreshAll: () =>
   async function forceLogout(user: AdminUser) {
     const id = getId(user);
     if (!id || !can(role, 'users:control')) return;
+    if (!window.confirm(`Force ${user.name || user.email || 'this user'} to sign in again?`)) return;
     await adminApi.forceLogoutUser(id);
     await refreshAll();
   }
@@ -568,6 +587,13 @@ function Products({products, refreshAll, role, pushFeed}: {products: AdminProduc
   const currentConfig = categoryConfig[form.category] || categoryConfig.Accessories;
   const categories = Array.from(new Set(products.map(product => product.category || 'Uncategorized')));
   const canCreateProducts = can(role, 'products:create');
+  const canDeleteProducts = can(role, 'products:delete');
+  const canManageInventory = can(role, 'inventory:manage');
+  const [selectedCategory, setSelectedCategory] = React.useState('All');
+  const [stockDrafts, setStockDrafts] = React.useState<Record<string, string>>({});
+  const visibleProducts = selectedCategory === 'All'
+    ? products
+    : products.filter(product => (product.category || 'Uncategorized') === selectedCategory);
 
   React.useEffect(() => {
     const nextPreviewUrls = imageFiles.map(file => URL.createObjectURL(file));
@@ -657,9 +683,41 @@ function Products({products, refreshAll, role, pushFeed}: {products: AdminProduc
     setTimeout(() => setUploadProgress(0), 800);
   }
 
+  async function deleteProduct(product: AdminProduct) {
+    if (!canDeleteProducts) return;
+    const title = product.title || product.name || product.slug || 'this product';
+    if (!window.confirm(`Delete ${title}? This removes it from listings, categories, search, and product pages.`)) {
+      return;
+    }
+
+    await adminApi.deleteProduct(product._id);
+    pushFeed('Product deleted', `${title} was removed from the live catalog.`);
+    await refreshAll();
+  }
+
+  async function updateStock(product: AdminProduct) {
+    if (!canManageInventory) return;
+    const nextStock = Number(stockDrafts[product._id] ?? product.stock ?? 0);
+    if (!Number.isFinite(nextStock) || nextStock < 0) {
+      pushFeed('Invalid stock', 'Stock must be a positive number.');
+      return;
+    }
+
+    await adminApi.updateInventory(product._id, {stock: nextStock});
+    pushFeed('Inventory updated', `${product.title || product.name || 'Product'} stock set to ${nextStock}.`);
+    await refreshAll();
+  }
+
   return (
     <section className="products-layout">
       <Panel title="Category management with show / hide">
+        <article className="row-card split">
+          <div>
+            <strong>All products</strong>
+            <span>{products.length} products</span>
+          </div>
+          <button className="secondary" onClick={() => setSelectedCategory('All')}>Open</button>
+        </article>
         {[...new Set([...productCategories, ...categories])].map(category => {
           const hidden = hiddenCategories.includes(category);
           return (
@@ -668,9 +726,12 @@ function Products({products, refreshAll, role, pushFeed}: {products: AdminProduc
                 <strong>{category}</strong>
                 <span>{products.filter(product => (product.category || 'Uncategorized') === category).length} products • {hidden ? 'Hidden' : 'Visible'}</span>
               </div>
-              <button className="secondary" onClick={() => setHiddenCategories(current => hidden ? current.filter(item => item !== category) : [...current, category])}>
-                {hidden ? 'Show' : 'Hide'}
-              </button>
+              <div>
+                <button className="secondary" onClick={() => setSelectedCategory(category)}>Open</button>
+                <button className="secondary" onClick={() => setHiddenCategories(current => hidden ? current.filter(item => item !== category) : [...current, category])}>
+                  {hidden ? 'Show' : 'Hide'}
+                </button>
+              </div>
             </article>
           );
         })}
@@ -748,13 +809,41 @@ function Products({products, refreshAll, role, pushFeed}: {products: AdminProduc
         </form>
       </Panel>
 
-      <Panel title="Product list">
+      <Panel title={`Product list - ${selectedCategory}`}>
         <div className="card-list">
-          {products.map(product => (
+          {visibleProducts.map(product => (
             <article className="data-card" key={product._id}>
+              {product.images?.[0] ? (
+                <img
+                  className="product-card-image"
+                  src={product.images[0]}
+                  alt=""
+                  onError={event => {
+                    event.currentTarget.hidden = true;
+                  }}
+                />
+              ) : null}
               <strong>{product.title || product.name || product.slug || 'Product'}</strong>
               <span>ID: {product._id}</span>
               <span>{product.category || 'n/a'} / {product.subCategory || 'n/a'} / {product.type || 'n/a'}</span>
+              {canManageInventory ? (
+                <div className="stock-editor">
+                  <input
+                    type="number"
+                    min="0"
+                    aria-label={`Stock for ${product.title || product.name || 'product'}`}
+                    value={stockDrafts[product._id] ?? String(product.stock ?? 0)}
+                    onChange={event => setStockDrafts(current => ({...current, [product._id]: event.target.value}))}
+                  />
+                  <button className="secondary" onClick={() => updateStock(product)}>Save stock</button>
+                </div>
+              ) : null}
+              <button
+                className="secondary danger-text"
+                disabled={!canDeleteProducts}
+                onClick={() => deleteProduct(product)}>
+                Delete product
+              </button>
               <span>Stock {product.stock || 0} • ₹{product.price || 0} • {product.isPublished ? 'Published' : 'Hidden'}</span>
             </article>
           ))}

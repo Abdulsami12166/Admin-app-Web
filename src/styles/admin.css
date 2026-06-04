@@ -303,6 +303,29 @@ td small,
   padding-right: 0.25rem;
 }
 
+.product-card-image {
+  width: 100%;
+  max-height: 180px;
+  border-radius: 12px;
+  object-fit: cover;
+  background: #08111f;
+}
+
+.stock-editor {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.stock-editor input {
+  width: 110px;
+  padding: 0.65rem;
+}
+
+.stock-editor button {
+  margin: 0;
+}
+
 .table-card {
   overflow: hidden;
 }

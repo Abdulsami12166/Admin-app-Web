@@ -64,12 +64,13 @@ export const permissionLabels: Record<Permission, string> = {
   'activity:view': 'View activities',
 };
 
-export const managedAdminRoles: AdminRole[] = ['product-manager', 'support'];
+export const managedAdminRoles: AdminRole[] = ['product-manager', 'inventory-manager', 'support'];
 
 export const roleLabels: Record<AdminRole, string> = {
   'super-admin': 'Super Admin',
   admin: 'Admin',
   'product-manager': 'Product Manager',
+  'inventory-manager': 'Inventory Manager',
   support: 'Support',
 };
 
@@ -124,6 +125,13 @@ export const rolePermissions: Record<AdminRole, Permission[]> = {
     'transactions:view',
     'analytics:view',
   ],
+  'inventory-manager': [
+    'dashboard:view',
+    'products:view',
+    'inventory:manage',
+    'orders:view',
+    'orders:update',
+  ],
   support: ['dashboard:view', 'users:view', 'orders:view', 'activity:view'],
 };
 
@@ -141,7 +149,13 @@ export function applyRolePermissions(matrix?: RolePermissionMatrix) {
 export function normalizeRole(role?: string): AdminRole {
   const value = (role || '').toLowerCase().replace(/[_\s]+/g, '-');
 
-  if (value === 'super-admin' || value === 'admin' || value === 'product-manager' || value === 'support') {
+  if (
+    value === 'super-admin'
+    || value === 'admin'
+    || value === 'product-manager'
+    || value === 'inventory-manager'
+    || value === 'support'
+  ) {
     return value;
   }
 

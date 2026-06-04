@@ -29,7 +29,7 @@ export type AdminUser = {
   createdAt?: string;
 };
 
-export type AdminRole = 'super-admin' | 'admin' | 'product-manager' | 'support';
+export type AdminRole = 'super-admin' | 'admin' | 'product-manager' | 'inventory-manager' | 'support';
 
 export type AdminProduct = {
   _id: string;
@@ -103,7 +103,7 @@ export type DashboardMetrics = {
 };
 
 type RequestOptions = {
-  method?: 'GET' | 'POST' | 'PUT' | 'PATCH';
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
   auth?: boolean;
 };
@@ -148,7 +148,14 @@ async function apiRequest<T>(path: string, options: RequestOptions = {}): Promis
   if (!response.ok) {
     const errorPayload = payload && typeof payload === 'object' ? payload as {message?: string; error?: string} : null;
     const message = errorPayload?.message || errorPayload?.error || `Request failed: ${response.status}`;
-    if (response.status === 401 || (response.status === 403 && message.toLowerCase().includes('admin access'))) {
+    const normalizedMessage = message.toLowerCase();
+    if (
+      response.status === 401
+      || (response.status === 403 && (
+        normalizedMessage.includes('admin access')
+        || normalizedMessage.includes('blocked by an administrator')
+      ))
+    ) {
       localStorage.removeItem(ADMIN_TOKEN_KEY);
       localStorage.removeItem(ADMIN_USER_KEY);
       window.dispatchEvent(new Event('admin-auth-expired'));
@@ -202,6 +209,17 @@ export const adminApi = {
   createProduct: (body: Record<string, unknown> | FormData) =>
     apiRequest<{data: {product: AdminProduct}}>('/admin/products', {
       method: 'POST',
+      body,
+      auth: true,
+    }),
+  deleteProduct: (productId: string) =>
+    apiRequest(`/admin/products/${productId}`, {
+      method: 'DELETE',
+      auth: true,
+    }),
+  updateInventory: (productId: string, body: {stock: number; sku?: string}) =>
+    apiRequest<{data: {product: AdminProduct}}>(`/admin/products/${productId}/inventory`, {
+      method: 'PATCH',
       body,
       auth: true,
     }),
