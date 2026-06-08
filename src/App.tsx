@@ -229,6 +229,7 @@ export function App() {
   }
 
   const visibleTabs = tabs.filter(tab => can(role, tab.permission));
+  const latestFeedItem = feed[0];
 
   return (
     <div className="admin-shell">
@@ -264,9 +265,17 @@ export function App() {
             <p className="eyebrow">Least privilege active</p>
             <h1>{tabs.find(tab => tab.key === activeTab)?.label}</h1>
           </div>
-          <button className="secondary" onClick={() => refreshAll().catch(error => pushFeed('Refresh failed', error.message))}>
-            {loading ? 'Refreshing...' : 'Refresh all'}
-          </button>
+          <div className="topbar-actions">
+            {latestFeedItem ? (
+              <div className="status-notification" aria-live="polite">
+                <strong>{latestFeedItem.title}</strong>
+                <span>{latestFeedItem.detail}</span>
+              </div>
+            ) : null}
+            <button className="secondary" onClick={() => refreshAll().catch(error => pushFeed('Refresh failed', error.message))}>
+              {loading ? 'Refreshing...' : 'Refresh all'}
+            </button>
+          </div>
         </header>
 
         {activeTab === 'dashboard' && <Dashboard metrics={metrics} feed={feed} />}

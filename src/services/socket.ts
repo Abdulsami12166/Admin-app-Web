@@ -17,6 +17,7 @@ export function connectAdminSocket(onEvent: (title: string, detail: string) => v
   });
 
   socket.on('connect', () => {
+    socket?.emit('subscribe-admin');
     socket?.emit('admin:subscribe');
     onEvent('Socket connected', 'Realtime admin channel is active.');
   });
@@ -44,6 +45,9 @@ export function connectAdminSocket(onEvent: (title: string, detail: string) => v
   );
   socket.on('product.created', payload =>
     onEvent('Product published', `${payload?.title || payload?.name || 'A product'} is live.`),
+  );
+  socket.on('product.updated', payload =>
+    onEvent('Inventory updated', `${payload?.title || payload?.name || 'A product'} stock is ${payload?.stock ?? 'updated'}.`),
   );
 
   return () => {
