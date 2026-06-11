@@ -1,0 +1,22 @@
+{
+  "rooms": {
+    "admins": "admin-room",
+    "userPattern": "user:{userId}"
+  },
+  "subscribeEvent": "subscribe-admin",
+  "domainEvents": [
+    "auth.user.logged_in",
+    "auth.user.logged_out",
+    "order.created",
+    "order.updated",
+    "product.created",
+    "admin.activity.created",
+    "admin.user.force_logout"
+  ],
+  "legacyEvents": [
+    "user-login",
+    "new-order",
+    "order-status-changed",
+    "user-force-logout"
+  ]
+}
