@@ -81,8 +81,136 @@ export function ReturnsRefundsSection({ onError, onSuccess }: ReturnsRefundsProp
             {selectedReturn.status === 'initiated' && (
               <>
                 <button onClick={() => handleApproveReturn(selectedReturn._id)} style={{ padding: '8px 16px', background: '#51cf66', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', marginRight: '10px' }}>
-                  Approve\n                </button>\n                <button style={{ padding: '8px 16px', background: '#ff6b6b', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>\n                  Reject\n                </button>\n              </>\n            )}\n          </div>\n        </div>\n      </div>\n    );\n  }
+                  Approve
+                </button>
+                <button style={{ padding: '8px 16px', background: '#ff6b6b', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+                  Reject
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  if (selectedRefund) {\n    return (\n      <div style={{ padding: '20px' }}>\n        <button onClick={() => setSelectedRefund(null)} style={{ marginBottom: '20px' }}>← Back</button>\n        <h2>Refund Details</h2>\n        <div style={{ background: '#f5f5f5', padding: '15px', borderRadius: '5px' }}>\n          <p><strong>Status:</strong> {selectedRefund.status}</p>\n          <p><strong>Amount:</strong> ${selectedRefund.refundAmount}</p>\n          <p><strong>Type:</strong> {selectedRefund.refundType}</p>\n          <p><strong>Reason:</strong> {selectedRefund.reason}</p>\n          <h4>Breakdown</h4>\n          <p>Product: ${selectedRefund.refundBreakdown.productAmount}</p>\n          <p>Shipping: ${selectedRefund.refundBreakdown.shippingRefund}</p>\n          <p>Tax: ${selectedRefund.refundBreakdown.taxRefund}</p>\n          <p>Additional Credit: ${selectedRefund.refundBreakdown.additionalCredit}</p>\n          <div style={{ marginTop: '20px' }}>\n            {selectedRefund.status === 'initiated' && (\n              <>\n                <button onClick={() => handleApproveRefund(selectedRefund._id)} style={{ padding: '8px 16px', background: '#51cf66', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', marginRight: '10px' }}>\n                  Approve\n                </button>\n                <button style={{ padding: '8px 16px', background: '#ff6b6b', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>\n                  Reject\n                </button>\n              </>\n            )}\n          </div>\n        </div>\n      </div>\n    );\n  }
+  if (selectedRefund) {
+    return (
+      <div style={{ padding: '20px' }}>
+        <button onClick={() => setSelectedRefund(null)} style={{ marginBottom: '20px' }}>← Back</button>
+        <h2>Refund Details</h2>
+        <div style={{ background: '#f5f5f5', padding: '15px', borderRadius: '5px' }}>
+          <p><strong>Status:</strong> {selectedRefund.status}</p>
+          <p><strong>Amount:</strong> ${selectedRefund.refundAmount}</p>
+          <p><strong>Type:</strong> {selectedRefund.refundType}</p>
+          <p><strong>Reason:</strong> {selectedRefund.reason}</p>
+          <h4>Breakdown</h4>
+          <p>Product: ${selectedRefund.refundBreakdown.productAmount}</p>
+          <p>Shipping: ${selectedRefund.refundBreakdown.shippingRefund}</p>
+          <p>Tax: ${selectedRefund.refundBreakdown.taxRefund}</p>
+          <p>Additional Credit: ${selectedRefund.refundBreakdown.additionalCredit}</p>
+          <div style={{ marginTop: '20px' }}>
+            {selectedRefund.status === 'initiated' && (
+              <>
+                <button onClick={() => handleApproveRefund(selectedRefund._id)} style={{ padding: '8px 16px', background: '#51cf66', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', marginRight: '10px' }}>
+                  Approve
+                </button>
+                <button style={{ padding: '8px 16px', background: '#ff6b6b', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+                  Reject
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  return (\n    <div style={{ padding: '20px' }}>\n      <h2>Returns & Refunds</h2>\n      <div style={{ marginBottom: '20px', borderBottom: '1px solid #ddd' }}>\n        <button\n          onClick={() => setTab('returns')}\n          style={{\n            padding: '10px 20px',\n            background: tab === 'returns' ? '#228be6' : 'transparent',\n            color: tab === 'returns' ? 'white' : '#000',\n            border: 'none',\n            cursor: 'pointer',\n            marginRight: '10px'\n          }}\n        >\n          Returns\n        </button>\n        <button\n          onClick={() => setTab('refunds')}\n          style={{\n            padding: '10px 20px',\n            background: tab === 'refunds' ? '#228be6' : 'transparent',\n            color: tab === 'refunds' ? 'white' : '#000',\n            border: 'none',\n            cursor: 'pointer'\n          }}\n        >\n          Refunds\n        </button>\n      </div>\n\n      {tab === 'returns' ? (\n        <div>\n          <table style={{ width: '100%', borderCollapse: 'collapse' }}>\n            <thead>\n              <tr style={{ background: '#f5f5f5' }}>\n                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Return ID</th>\n                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Items</th>\n                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Status</th>\n                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Action</th>\n              </tr>\n            </thead>\n            <tbody>\n              {returns.map((r) => (\n                <tr key={r._id} style={{ borderBottom: '1px solid #eee' }}>\n                  <td style={{ padding: '10px' }}>{r._id.slice(-8)}</td>\n                  <td style={{ padding: '10px' }}>{r.returnItems.length}</td>\n                  <td style={{ padding: '10px' }}>{r.status}</td>\n                  <td style={{ padding: '10px' }}>\n                    <button onClick={() => setSelectedReturn(r)} style={{ padding: '4px 8px', background: '#228be6', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}>View</button>\n                  </td>\n                </tr>\n              ))}\n            </tbody>\n          </table>\n        </div>\n      ) : (\n        <div>\n          <table style={{ width: '100%', borderCollapse: 'collapse' }}>\n            <thead>\n              <tr style={{ background: '#f5f5f5' }}>\n                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Refund ID</th>\n                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Amount</th>\n                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Type</th>\n                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Status</th>\n                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Action</th>\n              </tr>\n            </thead>\n            <tbody>\n              {refunds.map((ref) => (\n                <tr key={ref._id} style={{ borderBottom: '1px solid #eee' }}>\n                  <td style={{ padding: '10px' }}>{ref._id.slice(-8)}</td>\n                  <td style={{ padding: '10px' }}>${ref.refundAmount}</td>\n                  <td style={{ padding: '10px' }}>{ref.refundType}</td>\n                  <td style={{ padding: '10px' }}>{ref.status}</td>\n                  <td style={{ padding: '10px' }}>\n                    <button onClick={() => setSelectedRefund(ref)} style={{ padding: '4px 8px', background: '#228be6', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}>View</button>\n                  </td>\n                </tr>\n              ))}\n            </tbody>\n          </table>\n        </div>\n      )}\n      {loading && <p>Loading...</p>}\n    </div>\n  );\n}
+  return (
+    <div style={{ padding: '20px' }}>
+      <h2>Returns & Refunds</h2>
+      <div style={{ marginBottom: '20px', borderBottom: '1px solid #ddd' }}>
+        <button
+          onClick={() => setTab('returns')}
+          style={{
+            padding: '10px 20px',
+            background: tab === 'returns' ? '#228be6' : 'transparent',
+            color: tab === 'returns' ? 'white' : '#000',
+            border: 'none',
+            cursor: 'pointer',
+            marginRight: '10px'
+          }}
+        >
+          Returns
+        </button>
+        <button
+          onClick={() => setTab('refunds')}
+          style={{
+            padding: '10px 20px',
+            background: tab === 'refunds' ? '#228be6' : 'transparent',
+            color: tab === 'refunds' ? 'white' : '#000',
+            border: 'none',
+            cursor: 'pointer'
+          }}
+        >
+          Refunds
+        </button>
+      </div>
+
+      {tab === 'returns' ? (
+        <div>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: '#f5f5f5' }}>
+                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Return ID</th>
+                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Items</th>
+                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Status</th>
+                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {returns.map((r) => (
+                <tr key={r._id} style={{ borderBottom: '1px solid #eee' }}>
+                  <td style={{ padding: '10px' }}>{r._id.slice(-8)}</td>
+                  <td style={{ padding: '10px' }}>{r.returnItems.length}</td>
+                  <td style={{ padding: '10px' }}>{r.status}</td>
+                  <td style={{ padding: '10px' }}>
+                    <button onClick={() => setSelectedReturn(r)} style={{ padding: '4px 8px', background: '#228be6', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}>View</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: '#f5f5f5' }}>
+                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Refund ID</th>
+                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Amount</th>
+                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Type</th>
+                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Status</th>
+                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {refunds.map((ref) => (
+                <tr key={ref._id} style={{ borderBottom: '1px solid #eee' }}>
+                  <td style={{ padding: '10px' }}>{ref._id.slice(-8)}</td>
+                  <td style={{ padding: '10px' }}>${ref.refundAmount}</td>
+                  <td style={{ padding: '10px' }}>{ref.refundType}</td>
+                  <td style={{ padding: '10px' }}>{ref.status}</td>
+                  <td style={{ padding: '10px' }}>
+                    <button onClick={() => setSelectedRefund(ref)} style={{ padding: '4px 8px', background: '#228be6', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}>View</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {loading && <p>Loading...</p>}
+    </div>
+  );
+}
