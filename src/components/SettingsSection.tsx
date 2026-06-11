@@ -51,7 +51,7 @@ export function SettingsSection({ onError, onSuccess }: SettingsProps) {
           onChange={(e) => setCategoryFilter(e.target.value)}
           style={{ padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
         >
-          <option value=\"\">All Categories</option>
+          <option value="">All Categories</option>
           {categories.map((cat) => (
             <option key={cat} value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1)}</option>
           ))}
@@ -77,7 +77,7 @@ export function SettingsSection({ onError, onSuccess }: SettingsProps) {
                 <td style={{ padding: '10px' }}>
                   {editingKey === setting.key ? (
                     <input
-                      type=\"text\"
+                      type="text"
                       value={editValue}
                       onChange={(e) => setEditValue(e.target.value)}
                       style={{ padding: '4px', border: '1px solid #ddd', borderRadius: '3px', width: '100px' }}

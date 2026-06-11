@@ -37,7 +37,10 @@ export type Permission =
   | 'features:view'
   | 'features:manage'
   | 'analytics:view'
-  | 'activity:view';
+  | 'activity:view'
+  | 'notifications:view'
+  | 'admins:view'
+  | 'products:manage';
 
 export type RolePermissionMatrix = Partial<Record<AdminRole, Permission[]>>;
 
@@ -52,6 +55,7 @@ export const allPermissions: Permission[] = [
   'products:create',
   'products:publish',
   'products:delete',
+  'products:manage',
   'categories:manage',
   'inventory:view',
   'inventory:manage',
@@ -79,6 +83,8 @@ export const allPermissions: Permission[] = [
   'features:manage',
   'analytics:view',
   'activity:view',
+  'notifications:view',
+  'admins:view',
 ];
 
 export const permissionLabels: Record<Permission, string> = {
@@ -118,8 +124,9 @@ export const permissionLabels: Record<Permission, string> = {
   'features:view': 'View feature toggles',
   'features:manage': 'Manage feature toggles',
   'analytics:view': 'View analytics',
-  'activity:view': 'View activities',
-};
+  'activity:view': 'View activities',  'notifications:view': 'View notifications',
+  'admins:view': 'View admins',
+  'products:manage': 'Manage products',};
 
 export const managedAdminRoles: AdminRole[] = ['product-manager', 'inventory-manager', 'support', 'finance-manager', 'customer-service'];
 

@@ -29,7 +29,7 @@ export type AdminUser = {
   createdAt?: string;
 };
 
-export type AdminRole = 'super-admin' | 'admin' | 'product-manager' | 'inventory-manager' | 'support';
+export type AdminRole = 'super-admin' | 'admin' | 'product-manager' | 'inventory-manager' | 'support' | 'finance-manager' | 'customer-service';
 
 export type AdminProduct = {
   _id: string;
@@ -121,6 +121,7 @@ type RequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
   auth?: boolean;
+  params?: Record<string, unknown>;
 };
 
 class ApiError extends Error {
@@ -134,6 +135,15 @@ class ApiError extends Error {
 }
 
 async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const url = new URL(`${API_BASE_URL}${path}`, window.location.origin);
+  if (options.params) {
+    Object.entries(options.params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        url.searchParams.append(key, String(value));
+      }
+    });
+  }
+  const requestUrl = url.toString();
   const token = options.auth ? localStorage.getItem(ADMIN_TOKEN_KEY) : null;
   const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
   const requestBody: BodyInit | undefined = options.body
@@ -141,7 +151,7 @@ async function apiRequest<T>(path: string, options: RequestOptions = {}): Promis
       ? options.body as FormData
       : JSON.stringify(options.body)
     : undefined;
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(requestUrl, {
     method: options.method || 'GET',
     headers: {
       ...(isFormData ? {} : {'Content-Type': 'application/json'}),
@@ -191,8 +201,25 @@ export async function loginAdmin(email: string, password: string) {
     {method: 'POST', body: {email, password}},
   );
 }
+ 
+type AdminApiRequestMethod = RequestOptions['method'];
 
-export const adminApi = {
+const adminApiFunction = async <T = any>(path: string, method: AdminApiRequestMethod = 'GET', body?: unknown) =>
+  apiRequest<T>(path, {method, body, auth: true});
+
+const adminApiMethods = {
+  get: async <T = any>(path: string, options: Omit<RequestOptions, 'method'> = {}) =>
+    apiRequest<T>(path, {method: 'GET', ...options, auth: options.auth ?? true}),
+  post: async <T = any>(path: string, body?: unknown, options: Omit<RequestOptions, 'method'> = {}) =>
+    apiRequest<T>(path, {method: 'POST', body, ...options, auth: options.auth ?? true}),
+  patch: async <T = any>(path: string, body?: unknown, options: Omit<RequestOptions, 'method'> = {}) =>
+    apiRequest<T>(path, {method: 'PATCH', body, ...options, auth: options.auth ?? true}),
+  delete: async <T = any>(path: string, options: Omit<RequestOptions, 'method' | 'body'> = {}) =>
+    apiRequest<T>(path, {method: 'DELETE', ...options, auth: options.auth ?? true}),
+};
+
+export const adminApi = Object.assign(adminApiFunction, {
+  ...adminApiMethods,
   getAccessControl: () => apiRequest<{
     data: {
       roles: AdminRole[];
@@ -255,7 +282,7 @@ export const adminApi = {
       body: {orderStatus},
       auth: true,
     }),
-};
+});
 
 export function getSocketBaseUrl() {
   return SOCKET_BASE_URL;

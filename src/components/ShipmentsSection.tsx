@@ -82,22 +82,22 @@ export function ShipmentsSection({ onError, onSuccess }: ShipmentsProps) {
             <h3>Update Tracking</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <input
-                type=\"text\"
-                placeholder=\"Status (e.g., in_transit)\"
+                type="text"
+                placeholder="Status (e.g., in_transit)"
                 value={trackingForm.status}
                 onChange={(e) => setTrackingForm({ ...trackingForm, status: e.target.value })}
                 style={{ padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
               />
               <input
-                type=\"text\"
-                placeholder=\"Location\"
+                type="text"
+                placeholder="Location"
                 value={trackingForm.location}
                 onChange={(e) => setTrackingForm({ ...trackingForm, location: e.target.value })}
                 style={{ padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
               />
               <input
-                type=\"text\"
-                placeholder=\"Description\"
+                type="text"
+                placeholder="Description"
                 value={trackingForm.description}
                 onChange={(e) => setTrackingForm({ ...trackingForm, description: e.target.value })}
                 style={{ padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
@@ -140,13 +140,13 @@ export function ShipmentsSection({ onError, onSuccess }: ShipmentsProps) {
           onChange={(e) => setStatusFilter(e.target.value)}
           style={{ padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
         >
-          <option value=\"\">All Statuses</option>
-          <option value=\"pending\">Pending</option>
-          <option value=\"packed\">Packed</option>
-          <option value=\"in_transit\">In Transit</option>
-          <option value=\"out_for_delivery\">Out for Delivery</option>
-          <option value=\"delivered\">Delivered</option>
-          <option value=\"failed\">Failed</option>
+          <option value="">All Statuses</option>
+          <option value="pending">Pending</option>
+          <option value="packed">Packed</option>
+          <option value="in_transit">In Transit</option>
+          <option value="out_for_delivery">Out for Delivery</option>
+          <option value="delivered">Delivered</option>
+          <option value="failed">Failed</option>
         </select>
       </div>
       <div style={{ overflowX: 'auto' }}>
