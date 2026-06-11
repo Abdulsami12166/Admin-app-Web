@@ -34,8 +34,12 @@ import { ReturnsRefundsSection } from './components/ReturnsRefundsSection';
 import { AuditLogsSection } from './components/AuditLogsSection';
 import { SettingsSection } from './components/SettingsSection';
 import { FeatureTogglesSection } from './components/FeatureTogglesSection';
+import { NotificationsSection } from './components/NotificationsSection';
+import { SessionManagementSection } from './components/SessionManagementSection';
+import { OrderTimelineSection } from './components/OrderTimelineSection';
+import { BulkOperationsSection } from './components/BulkOperationsSection';
 
-type TabKey = 'dashboard' | 'access' | 'users' | 'products' | 'orders' | 'transactions' | 'analytics' | 'activity' | 'customers' | 'inventory' | 'shipments' | 'tickets' | 'invoices' | 'returns-refunds' | 'audit-logs' | 'settings' | 'feature-toggles';
+type TabKey = 'dashboard' | 'access' | 'users' | 'products' | 'orders' | 'transactions' | 'analytics' | 'activity' | 'customers' | 'inventory' | 'shipments' | 'tickets' | 'invoices' | 'returns-refunds' | 'audit-logs' | 'settings' | 'feature-toggles' | 'notifications' | 'sessions' | 'order-timeline' | 'bulk-operations';
 type FeedItem = {id: string; title: string; detail: string; createdAt: number};
 
 const tabs: Array<{key: TabKey; label: string; permission: Parameters<typeof can>[1]}> = [
@@ -55,6 +59,10 @@ const tabs: Array<{key: TabKey; label: string; permission: Parameters<typeof can
   {key: 'audit-logs', label: 'Audit Logs', permission: 'audit:view'},
   {key: 'settings', label: 'Settings', permission: 'settings:view'},
   {key: 'feature-toggles', label: 'Feature Toggles', permission: 'features:view'},
+  {key: 'notifications', label: 'Notifications', permission: 'notifications:view'},
+  {key: 'sessions', label: 'Sessions', permission: 'admins:view'},
+  {key: 'order-timeline', label: 'Order Timeline', permission: 'orders:view'},
+  {key: 'bulk-operations', label: 'Bulk Operations', permission: 'products:manage'},
   {key: 'activity', label: 'Activity', permission: 'activity:view'},
 ];
 
@@ -364,6 +372,30 @@ export function App() {
         )}
         {activeTab === 'feature-toggles' && can(role, 'features:view') && (
           <FeatureTogglesSection 
+            onError={(msg) => pushFeed('Error', msg)} 
+            onSuccess={(msg) => pushFeed('Success', msg)} 
+          />
+        )}
+        {activeTab === 'notifications' && can(role, 'notifications:view') && (
+          <NotificationsSection 
+            onError={(msg) => pushFeed('Error', msg)} 
+            onSuccess={(msg) => pushFeed('Success', msg)} 
+          />
+        )}
+        {activeTab === 'sessions' && can(role, 'admins:view') && (
+          <SessionManagementSection 
+            onError={(msg) => pushFeed('Error', msg)} 
+            onSuccess={(msg) => pushFeed('Success', msg)} 
+          />
+        )}
+        {activeTab === 'order-timeline' && can(role, 'orders:view') && (
+          <OrderTimelineSection 
+            onError={(msg) => pushFeed('Error', msg)} 
+            onSuccess={(msg) => pushFeed('Success', msg)} 
+          />
+        )}
+        {activeTab === 'bulk-operations' && can(role, 'products:manage') && (
+          <BulkOperationsSection 
             onError={(msg) => pushFeed('Error', msg)} 
             onSuccess={(msg) => pushFeed('Success', msg)} 
           />
