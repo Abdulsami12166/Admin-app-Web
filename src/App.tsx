@@ -25,8 +25,17 @@ import {
   type RolePermissionMatrix,
 } from './services/access';
 import {connectAdminSocket} from './services/socket';
+import { CustomersSection } from './components/CustomersSection';
+import { InventorySection } from './components/InventorySection';
+import { ShipmentsSection } from './components/ShipmentsSection';
+import { TicketsSection } from './components/TicketsSection';
+import { InvoicesSection } from './components/InvoicesSection';
+import { ReturnsRefundsSection } from './components/ReturnsRefundsSection';
+import { AuditLogsSection } from './components/AuditLogsSection';
+import { SettingsSection } from './components/SettingsSection';
+import { FeatureTogglesSection } from './components/FeatureTogglesSection';
 
-type TabKey = 'dashboard' | 'access' | 'users' | 'products' | 'orders' | 'transactions' | 'analytics' | 'activity';
+type TabKey = 'dashboard' | 'access' | 'users' | 'products' | 'orders' | 'transactions' | 'analytics' | 'activity' | 'customers' | 'inventory' | 'shipments' | 'tickets' | 'invoices' | 'returns-refunds' | 'audit-logs' | 'settings' | 'feature-toggles';
 type FeedItem = {id: string; title: string; detail: string; createdAt: number};
 
 const tabs: Array<{key: TabKey; label: string; permission: Parameters<typeof can>[1]}> = [
@@ -35,8 +44,17 @@ const tabs: Array<{key: TabKey; label: string; permission: Parameters<typeof can
   {key: 'users', label: 'Users', permission: 'users:view'},
   {key: 'products', label: 'Products', permission: 'products:view'},
   {key: 'orders', label: 'Orders', permission: 'orders:view'},
+  {key: 'customers', label: 'Customers', permission: 'users:view'},
+  {key: 'inventory', label: 'Inventory', permission: 'inventory:view'},
+  {key: 'shipments', label: 'Shipments', permission: 'shipments:view'},
+  {key: 'tickets', label: 'Tickets', permission: 'support:view'},
+  {key: 'invoices', label: 'Invoices', permission: 'finance:view'},
+  {key: 'returns-refunds', label: 'Returns/Refunds', permission: 'returns:view'},
   {key: 'transactions', label: 'Transactions', permission: 'transactions:view'},
   {key: 'analytics', label: 'Analytics', permission: 'analytics:view'},
+  {key: 'audit-logs', label: 'Audit Logs', permission: 'audit:view'},
+  {key: 'settings', label: 'Settings', permission: 'settings:view'},
+  {key: 'feature-toggles', label: 'Feature Toggles', permission: 'features:view'},
   {key: 'activity', label: 'Activity', permission: 'activity:view'},
 ];
 
@@ -294,8 +312,62 @@ export function App() {
         )}
         {activeTab === 'users' && <Users users={users} refreshAll={refreshAll} role={role} />}
         {activeTab === 'products' && <Products products={products} refreshAll={refreshAll} role={role} pushFeed={pushFeed} />}
+        {activeTab === 'customers' && can(role, 'users:view') && (
+          <CustomersSection 
+            onError={(msg) => pushFeed('Error', msg)} 
+            onSuccess={(msg) => pushFeed('Success', msg)} 
+          />
+        )}
+        {activeTab === 'inventory' && can(role, 'inventory:view') && (
+          <InventorySection 
+            onError={(msg) => pushFeed('Error', msg)} 
+            onSuccess={(msg) => pushFeed('Success', msg)} 
+          />
+        )}
+        {activeTab === 'shipments' && can(role, 'shipments:view') && (
+          <ShipmentsSection 
+            onError={(msg) => pushFeed('Error', msg)} 
+            onSuccess={(msg) => pushFeed('Success', msg)} 
+          />
+        )}
+        {activeTab === 'tickets' && can(role, 'support:view') && (
+          <TicketsSection 
+            onError={(msg) => pushFeed('Error', msg)} 
+            onSuccess={(msg) => pushFeed('Success', msg)} 
+          />
+        )}
+        {activeTab === 'invoices' && can(role, 'finance:view') && (
+          <InvoicesSection 
+            onError={(msg) => pushFeed('Error', msg)} 
+            onSuccess={(msg) => pushFeed('Success', msg)} 
+          />
+        )}
+        {activeTab === 'returns-refunds' && can(role, 'returns:view') && (
+          <ReturnsRefundsSection 
+            onError={(msg) => pushFeed('Error', msg)} 
+            onSuccess={(msg) => pushFeed('Success', msg)} 
+          />
+        )}
         {activeTab === 'orders' && <Orders orders={orders} refreshAll={refreshAll} role={role} />}
         {activeTab === 'transactions' && <Transactions transactions={transactions} />}
+        {activeTab === 'audit-logs' && can(role, 'audit:view') && (
+          <AuditLogsSection 
+            onError={(msg) => pushFeed('Error', msg)} 
+            onSuccess={(msg) => pushFeed('Success', msg)} 
+          />
+        )}
+        {activeTab === 'settings' && can(role, 'settings:view') && (
+          <SettingsSection 
+            onError={(msg) => pushFeed('Error', msg)} 
+            onSuccess={(msg) => pushFeed('Success', msg)} 
+          />
+        )}
+        {activeTab === 'feature-toggles' && can(role, 'features:view') && (
+          <FeatureTogglesSection 
+            onError={(msg) => pushFeed('Error', msg)} 
+            onSuccess={(msg) => pushFeed('Success', msg)} 
+          />
+        )}
         {activeTab === 'analytics' && <Analytics metrics={metrics} />}
         {activeTab === 'activity' && <Activity activities={activities} feed={feed} users={users} />}
       </main>
