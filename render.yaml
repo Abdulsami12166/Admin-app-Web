@@ -2,7 +2,8 @@ services:
   - type: web
     name: ecommerce-backend
     runtime: node
-    rootDir: backend
+    rootDir: Ecommerce
+    branch: backend-only
     plan: free
     buildCommand: npm install
     startCommand: npm start
