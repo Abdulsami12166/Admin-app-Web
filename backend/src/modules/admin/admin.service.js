@@ -199,13 +199,34 @@ const createProduct = async (payload, adminUserId, app) => {
   return { product };
 };
 
-const updateProduct = async (productId, payload) => {
+const updateProduct = async (productId, payload, app) => {
   const product = await adminRepository.getProductById(productId);
   if (!product) throw new AppError('Product not found', 404);
+
   Object.assign(product, payload);
   await adminRepository.saveProduct(product);
+
+  // Notify users in real-time
+  const eventPayload = {
+    productId: String(product._id),
+    title: product.title,
+    description: product.description,
+    image: product.images?.[0] || '',
+    category: product.category,
+    price: product.price,
+    discountedPrice: product.discountedPrice,
+    stock: product.stock,
+    sizes: product.sizes || [],
+  };
+
+  // Notify users
+  // - existing client listens to `product.updated`
+  emitToAll(app, 'product.updated', eventPayload);
+
+
   return { product };
 };
+
 
 const deleteProduct = async productId => {
   const product = await adminRepository.getProductById(productId);

@@ -23,7 +23,9 @@ module.exports = {
   forceLogoutUser: wrap(req => adminService.forceLogoutUser(req.params.id, req.app), 'User has been forcefully logged out'),
   getProducts: wrap(() => adminService.getProducts(), 'Admin products fetched successfully'),
   createProduct: wrap(req => adminService.createProduct(req.body, req.userId, req.app), 'Product created successfully', 201),
-  updateProduct: wrap(req => adminService.updateProduct(req.params.id, req.body), 'Product updated successfully'),
+  updateProduct: wrap(req => adminService.updateProduct(req.params.id, req.body, req.app), 'Product updated successfully'),
+
+
   deleteProduct: wrap(req => adminService.deleteProduct(req.params.id), 'Product deleted successfully'),
   getOrders: wrap(() => adminService.getOrders(), 'Admin orders fetched successfully'),
   getTransactions: wrap(() => adminService.getTransactions(), 'Admin transactions fetched successfully'),
