@@ -1,5 +1,6 @@
 import {io, Socket} from 'socket.io-client';
-import {ADMIN_TOKEN_KEY, ADMIN_USER_KEY, getSocketBaseUrl} from './api';
+import {ADMIN_TOKEN_KEY, getSocketBaseUrl} from './api';
+import { socketEvents } from './events';
 
 let socket: Socket | null = null;
 
@@ -17,37 +18,37 @@ export function connectAdminSocket(onEvent: (title: string, detail: string) => v
   });
 
   socket.on('connect', () => {
-    socket?.emit('subscribe-admin');
-    socket?.emit('admin:subscribe');
-    onEvent('Socket connected', 'Realtime admin channel is active.');
+    socket?.emit(socketEvents.ADMIN_SUBSCRIBE);
   });
 
   socket.on('connect_error', error => {
     if (String(error.message || '').toLowerCase().includes('token')) {
       localStorage.removeItem(ADMIN_TOKEN_KEY);
-      localStorage.removeItem(ADMIN_USER_KEY);
       window.dispatchEvent(new Event('admin-auth-expired'));
     }
   });
 
-  socket.on('disconnect', () => onEvent('Socket disconnected', 'Realtime admin channel paused.'));
-  socket.on('auth.user.logged_in', payload =>
+  socket.on('disconnect', () => {
+    console.debug('Admin socket disconnected');
+  });
+
+  socket.on(socketEvents.DOMAIN.USER_LOGGED_IN, payload =>
     onEvent('User login', `${payload?.name || payload?.email || 'A user'} signed in.`),
   );
-  socket.on('auth.user.logged_out', payload =>
+  socket.on(socketEvents.DOMAIN.USER_LOGGED_OUT, payload =>
     onEvent('User logout', `${payload?.name || payload?.email || 'A user'} signed out.`),
   );
-  socket.on('order.created', payload =>
+  socket.on(socketEvents.DOMAIN.ORDER_CREATED, payload =>
     onEvent('New order', `Order ${payload?.orderId || 'unknown'} was placed.`),
   );
-  socket.on('order.updated', payload =>
+  socket.on(socketEvents.DOMAIN.ORDER_UPDATED, payload =>
     onEvent('Order updated', `Order ${payload?.orderId || 'unknown'} is ${payload?.orderStatus || 'updated'}.`),
   );
-  socket.on('product.created', payload =>
+  socket.on(socketEvents.DOMAIN.PRODUCT_CREATED, payload =>
     onEvent('Product published', `${payload?.title || payload?.name || 'A product'} is live.`),
   );
-  socket.on('product.updated', payload =>
-    onEvent('Inventory updated', `${payload?.title || payload?.name || 'A product'} stock is ${payload?.stock ?? 'updated'}.`),
+  socket.on(socketEvents.DOMAIN.ADMIN_ACTIVITY_CREATED, payload =>
+    onEvent('Admin activity', `${payload?.details || 'An admin action occurred.'}`),
   );
 
   return () => {
