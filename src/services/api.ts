@@ -201,6 +201,13 @@ export async function loginAdmin(email: string, password: string) {
     {method: 'POST', body: {email, password}},
   );
 }
+
+export async function forgotPassword(email: string) {
+  return apiRequest<{message: string}>(
+    '/auth/forgot-password',
+    {method: 'POST', body: {email}, auth: false},
+  );
+}
  
 type AdminApiRequestMethod = RequestOptions['method'];
 

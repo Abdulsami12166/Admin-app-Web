@@ -11,6 +11,7 @@ import {
   DashboardMetrics,
   adminApi,
   loginAdmin,
+  forgotPassword,
 } from './services/api';
 import {
   allPermissions,
@@ -25,6 +26,8 @@ import {
   type RolePermissionMatrix,
 } from './services/access';
 import {connectAdminSocket} from './services/socket';
+import { useToast } from './services/toast';
+import { LoadingOverlay } from './components/Dialogs';
 import { CustomersSection } from './components/CustomersSection';
 import { InventorySection } from './components/InventorySection';
 import { ShipmentsSection } from './components/ShipmentsSection';
@@ -46,24 +49,24 @@ const tabs: Array<{key: TabKey; label: string; permission: Parameters<typeof can
   {key: 'dashboard', label: 'Dashboard', permission: 'dashboard:view'},
   {key: 'access', label: 'Access', permission: 'admins:manage'},
   {key: 'users', label: 'Users', permission: 'users:view'},
-  {key: 'products', label: 'Products', permission: 'products:view'},
-  {key: 'orders', label: 'Orders', permission: 'orders:view'},
   {key: 'customers', label: 'Customers', permission: 'users:view'},
+  {key: 'products', label: 'Products', permission: 'products:view'},
   {key: 'inventory', label: 'Inventory', permission: 'inventory:view'},
+  {key: 'orders', label: 'Orders', permission: 'orders:view'},
+  {key: 'transactions', label: 'Transactions', permission: 'transactions:view'},
   {key: 'shipments', label: 'Shipments', permission: 'shipments:view'},
   {key: 'tickets', label: 'Tickets', permission: 'support:view'},
   {key: 'invoices', label: 'Invoices', permission: 'finance:view'},
   {key: 'returns-refunds', label: 'Returns/Refunds', permission: 'returns:view'},
-  {key: 'transactions', label: 'Transactions', permission: 'transactions:view'},
+  {key: 'order-timeline', label: 'Order Timeline', permission: 'orders:view'},
   {key: 'analytics', label: 'Analytics', permission: 'analytics:view'},
+  {key: 'activity', label: 'Activity', permission: 'activity:view'},
   {key: 'audit-logs', label: 'Audit Logs', permission: 'audit:view'},
   {key: 'settings', label: 'Settings', permission: 'settings:view'},
   {key: 'feature-toggles', label: 'Feature Toggles', permission: 'features:view'},
   {key: 'notifications', label: 'Notifications', permission: 'notifications:view'},
   {key: 'sessions', label: 'Sessions', permission: 'admins:view'},
-  {key: 'order-timeline', label: 'Order Timeline', permission: 'orders:view'},
   {key: 'bulk-operations', label: 'Bulk Operations', permission: 'products:manage'},
-  {key: 'activity', label: 'Activity', permission: 'activity:view'},
 ];
 
 const productCategories = [
@@ -173,14 +176,29 @@ export function App() {
   const [transactions, setTransactions] = React.useState<AdminTransaction[]>([]);
   const [activities, setActivities] = React.useState<ActivityItem[]>([]);
   const [permissionMatrix, setPermissionMatrix] = React.useState<RolePermissionMatrix>(rolePermissions);
-  const [managedAdmins, setManagedAdmins] = React.useState<AdminUser[]>([]);
+  const [adminRoles, setAdminRoles] = React.useState<AdminRole[]>(Object.keys(roleLabels) as AdminRole[]);
+  const [manageableRoles, setManageableRoles] = React.useState<AdminRole[]>(managedAdminRoles);
+  const [adminUsers, setAdminUsers] = React.useState<AdminUser[]>([]);
   const [feed, setFeed] = React.useState<FeedItem[]>([]);
   const [loading, setLoading] = React.useState(false);
+  const [actionBusy, setActionBusy] = React.useState(false);
+  const [busyMessage, setBusyMessage] = React.useState('');
   const role = normalizeRole(user?.role);
+  const toast = useToast();
 
   const pushFeed = React.useCallback((title: string, detail: string) => {
     setFeed(current => [{id: `${Date.now()}-${Math.random()}`, title, detail, createdAt: Date.now()}, ...current].slice(0, 40));
   }, []);
+
+  const showSuccess = React.useCallback((title: string, detail: string) => {
+    toast.success(detail, title);
+    pushFeed(title, detail);
+  }, [pushFeed, toast]);
+
+  const showError = React.useCallback((title: string, detail: string) => {
+    toast.error(detail, title);
+    pushFeed(title, detail);
+  }, [pushFeed, toast]);
 
   React.useEffect(() => {
     if (user?.permissions?.length) {
@@ -208,7 +226,9 @@ export function App() {
       if (accessResult.status === 'fulfilled' && accessResult.value) {
         applyRolePermissions(accessResult.value.data?.permissionsByRole);
         setPermissionMatrix(accessResult.value.data?.permissionsByRole || rolePermissions);
-        setManagedAdmins(accessResult.value.data?.admins || []);
+        setAdminRoles(accessResult.value.data?.roles || (Object.keys(roleLabels) as AdminRole[]));
+        setManageableRoles(accessResult.value.data?.managedRoles || managedAdminRoles);
+        setAdminUsers(accessResult.value.data?.admins || []);
       }
       if (usersResult.status === 'fulfilled') setUsers(usersResult.value.data?.users || []);
       if (productsResult.status === 'fulfilled') setProducts(productsResult.value.data?.products || []);
@@ -237,24 +257,33 @@ export function App() {
 
   React.useEffect(() => {
     if (!user) return;
-    refreshAll().catch(error => pushFeed('Refresh failed', error.message));
+    refreshAll().catch(error => showError('Refresh failed', error.message));
     return connectAdminSocket((title, detail) => {
-      pushFeed(title, detail);
+      showSuccess(title, detail);
       refreshAll().catch(() => undefined);
     });
-  }, [pushFeed, refreshAll, user]);
+  }, [pushFeed, refreshAll, showError, showSuccess, user]);
 
   function logout() {
     localStorage.removeItem(ADMIN_TOKEN_KEY);
     localStorage.removeItem(ADMIN_USER_KEY);
     setUser(null);
+    showSuccess('Signed out', 'You have been signed out successfully.');
   }
 
   if (!user) {
     return <LoginScreen onLoggedIn={setUser} />;
   }
 
-  const visibleTabs = tabs.filter(tab => can(role, tab.permission));
+  const visibleTabs = tabs.filter(tab => {
+    if (role === 'super-admin') {
+      return true;
+    }
+    if (tab.key === 'sessions') {
+      return role === 'super-admin' && can(role, tab.permission);
+    }
+    return can(role, tab.permission);
+  });
   const latestFeedItem = feed[0];
 
   return (
@@ -285,6 +314,11 @@ export function App() {
         </div>
       </aside>
 
+      { (loading || actionBusy) && (
+        <LoadingOverlay
+          message={busyMessage || (loading ? 'Loading admin data...' : 'Processing request...')}
+        />
+      )}
       <main className="workspace">
         <header className="topbar">
           <div>
@@ -298,20 +332,21 @@ export function App() {
                 <span>{latestFeedItem.detail}</span>
               </div>
             ) : null}
-            <button className="secondary" onClick={() => refreshAll().catch(error => pushFeed('Refresh failed', error.message))}>
+            <button className="secondary" onClick={() => refreshAll().catch(error => showError('Refresh failed', error.message))}>
               {loading ? 'Refreshing...' : 'Refresh all'}
             </button>
           </div>
         </header>
 
-        {activeTab === 'dashboard' && <Dashboard metrics={metrics} feed={feed} />}
+        {activeTab === 'dashboard' && <Dashboard metrics={metrics} feed={feed} adminRoles={adminRoles} />}
         {activeTab === 'access' && (
           <Access
             role={role}
             users={users}
             activities={activities}
             permissionMatrix={permissionMatrix}
-            managedAdmins={managedAdmins}
+            manageableRoles={manageableRoles}
+            adminUsers={adminUsers}
             onUpdated={async message => {
               pushFeed('Access updated', message);
               await refreshAll();
@@ -410,14 +445,26 @@ export function App() {
 function LoginScreen({onLoggedIn}: {onLoggedIn: (user: AdminUser) => void}) {
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
+  const [forgotMode, setForgotMode] = React.useState(false);
+  const [forgotEmail, setForgotEmail] = React.useState('');
+  const [status, setStatus] = React.useState('');
   const [error, setError] = React.useState('');
   const [loading, setLoading] = React.useState(false);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     setError('');
+    setStatus('');
     setLoading(true);
     try {
+      if (forgotMode) {
+        const response = await forgotPassword(forgotEmail.trim());
+        setStatus(response?.message || 'Password reset instructions were sent if the email exists.');
+        setForgotEmail('');
+        setForgotMode(false);
+        return;
+      }
+
       const response = await loginAdmin(email.trim(), password);
       if (!response?.token || !response.user) {
         throw new Error('Admin login did not return a valid session. Please try again.');
@@ -436,20 +483,51 @@ function LoginScreen({onLoggedIn}: {onLoggedIn: (user: AdminUser) => void}) {
     <main className="login-page">
       <form className="login-card" onSubmit={submit}>
         <p className="eyebrow">Secure operations</p>
-        <h1>Admin Login</h1>
+        <h1>{forgotMode ? 'Reset admin password' : 'Admin Login'}</h1>
+
         <label>Email</label>
-        <input value={email} onChange={event => setEmail(event.target.value)} placeholder="admin@example.com" />
-        <label>Password</label>
-        <input value={password} onChange={event => setPassword(event.target.value)} placeholder="Password" type="password" />
+        <input
+          value={forgotMode ? forgotEmail : email}
+          onChange={event => (forgotMode ? setForgotEmail(event.target.value) : setEmail(event.target.value))}
+          placeholder="admin@example.com"
+          type="email"
+          required
+        />
+
+        {!forgotMode && (
+          <>
+            <label>Password</label>
+            <input
+              value={password}
+              onChange={event => setPassword(event.target.value)}
+              placeholder="Password"
+              type="password"
+              required
+            />
+          </>
+        )}
+
         {error && <p className="error">{error}</p>}
-        <button>{loading ? 'Signing in...' : 'Sign in'}</button>
-        <small>CAPTCHA/rate-limit should be enforced by backend or gateway in production.</small>
+        {status && <p className="info">{status}</p>}
+
+        <button>{loading ? (forgotMode ? 'Sending...' : 'Signing in...') : (forgotMode ? 'Send reset link' : 'Sign in')}</button>
+
+        <div className="login-footnote">
+          <button type="button" className="ghost" onClick={() => {
+            setForgotMode(current => !current);
+            setError('');
+            setStatus('');
+          }}>
+            {forgotMode ? 'Back to login' : 'Forgot password?'}
+          </button>
+          <small>CAPTCHA / rate limit should be enforced by backend or gateway in production.</small>
+        </div>
       </form>
     </main>
   );
 }
 
-function Dashboard({metrics, feed}: {metrics: DashboardMetrics; feed: FeedItem[]}) {
+function Dashboard({metrics, feed, adminRoles}: {metrics: DashboardMetrics; feed: FeedItem[]; adminRoles: AdminRole[]}) {
   return (
     <section>
       <div className="stats-grid">
@@ -458,6 +536,19 @@ function Dashboard({metrics, feed}: {metrics: DashboardMetrics; feed: FeedItem[]
         <Stat label="Products" value={metrics.productCount || 0} />
         <Stat label="Revenue" value={`₹${metrics.revenue || 0}`} />
       </div>
+      <div className="stats-grid small">
+        <Stat label="Blocked users" value={metrics.blockedUsers || 0} />
+        <Stat label="New users today" value={metrics.newUsersToday || 0} />
+        <Stat label="Orders last 24h" value={metrics.ordersLast24h || 0} />
+        <Stat label="Active users" value={metrics.activeUsersLast24h || 0} />
+      </div>
+      <Panel title="Active admin roles">
+        <div className="tag-list">
+          {adminRoles.length ? adminRoles.map(roleKey => (
+            <span className="tag" key={roleKey}>{roleLabels[roleKey]}</span>
+          )) : <p>No admin roles available.</p>}
+        </div>
+      </Panel>
       <Panel title="Realtime notifications">
         <FeedList feed={feed} empty="Waiting for websocket updates." />
       </Panel>
@@ -470,25 +561,28 @@ function Access({
   users,
   activities,
   permissionMatrix,
-  managedAdmins,
+  manageableRoles,
+  adminUsers,
   onUpdated,
 }: {
   role: ReturnType<typeof normalizeRole>;
   users: AdminUser[];
   activities: ActivityItem[];
   permissionMatrix: RolePermissionMatrix;
-  managedAdmins: AdminUser[];
+  manageableRoles: AdminRole[];
+  adminUsers: AdminUser[];
   onUpdated: (message: string) => Promise<void>;
 }) {
+  const availableRoles = manageableRoles.length ? manageableRoles : managedAdminRoles;
   const [draftMatrix, setDraftMatrix] = React.useState<RolePermissionMatrix>(permissionMatrix);
   const [savingRole, setSavingRole] = React.useState<string>('');
   const [newAdmin, setNewAdmin] = React.useState({
     name: '',
     email: '',
     password: '',
-    role: managedAdminRoles[0],
+    role: availableRoles[0],
   });
-  const subAdmins = managedAdmins.filter(admin => managedAdminRoles.includes(normalizeRole(admin.role)));
+  const subAdmins = adminUsers.filter(admin => availableRoles.includes(normalizeRole(admin.role)));
 
   React.useEffect(() => {
     setDraftMatrix(permissionMatrix);
@@ -522,7 +616,7 @@ function Access({
   async function submitAdmin(event: React.FormEvent) {
     event.preventDefault();
     const response = await adminApi.createAdmin(newAdmin);
-    setNewAdmin({name: '', email: '', password: '', role: managedAdminRoles[0]});
+    setNewAdmin({name: '', email: '', password: '', role: availableRoles[0]});
     await onUpdated(`${response.data.admin.email} created as ${roleLabels[normalizeRole(response.data.admin.role)]}.`);
   }
 
@@ -533,34 +627,40 @@ function Access({
           <strong>{roleLabels['super-admin']}</strong>
           <span>Full access is always enabled and cannot be restricted.</span>
         </article>
-        {managedAdminRoles.map(roleKey => (
-          <article className="row-card" key={roleKey}>
-            <div className="split">
-              <strong>{roleLabels[roleKey]}</strong>
-              <button
-                type="button"
-                className="secondary"
-                disabled={savingRole === roleKey}
-                onClick={() => saveRole(roleKey)}>
-                {savingRole === roleKey ? 'Saving...' : 'Save permissions'}
-              </button>
-            </div>
-            <div className="permission-grid">
-              {allPermissions
-                .filter(permission => !['admins:manage', 'roles:assign', 'system:configure'].includes(permission))
-                .map(permission => (
-                  <label className="permission-check" key={`${roleKey}-${permission}`}>
-                    <input
-                      type="checkbox"
-                      checked={(draftMatrix[roleKey] || []).includes(permission)}
-                      onChange={() => togglePermission(roleKey, permission)}
-                    />
-                    <span>{permissionLabels[permission]}</span>
-                  </label>
-                ))}
-            </div>
-          </article>
-        ))}
+        {availableRoles.map(roleKey => {
+          const defaultPermissions = rolePermissions[roleKey] || [];
+          const rolePermissionOptions = roleKey === 'super-admin' ? allPermissions : defaultPermissions;
+          const checkedPermissions = draftMatrix[roleKey] ?? defaultPermissions;
+
+          return (
+            <article className="row-card" key={roleKey}>
+              <div className="split">
+                <strong>{roleLabels[roleKey]}</strong>
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={savingRole === roleKey}
+                  onClick={() => saveRole(roleKey)}>
+                  {savingRole === roleKey ? 'Saving...' : 'Save permissions'}
+                </button>
+              </div>
+              <div className="permission-grid">
+                {rolePermissionOptions
+                  .filter(permission => !['admins:manage', 'roles:assign', 'system:configure'].includes(permission))
+                  .map(permission => (
+                    <label className="permission-check" key={`${roleKey}-${permission}`}>
+                      <input
+                        type="checkbox"
+                        checked={checkedPermissions.includes(permission)}
+                        onChange={() => togglePermission(roleKey, permission)}
+                      />
+                      <span>{permissionLabels[permission]}</span>
+                    </label>
+                  ))}
+              </div>
+            </article>
+          );
+        })}
       </Panel>
       <Panel title="Create sub admin">
         <form className="product-form" onSubmit={submitAdmin}>
@@ -588,7 +688,7 @@ function Access({
           <select
             value={newAdmin.role}
             onChange={event => setNewAdmin(current => ({...current, role: normalizeRole(event.target.value)}))}>
-            {managedAdminRoles.map(roleKey => (
+            {availableRoles.map(roleKey => (
               <option key={roleKey} value={roleKey}>{roleLabels[roleKey]}</option>
             ))}
           </select>
@@ -623,17 +723,46 @@ function Users({users, refreshAll, role}: {users: AdminUser[]; refreshAll: () =>
     if (!id || !can(role, 'users:control')) return;
     const action = user.blocked ? 'Unblock' : 'Block';
     if (!window.confirm(`${action} ${user.name || user.email || 'this user'}?`)) return;
-    if (user.blocked) await adminApi.unblockUser(id);
-    else await adminApi.blockUser(id);
-    await refreshAll();
+
+    setActionBusy(true);
+    setBusyMessage(`${action}ing user...`);
+    try {
+      const response = user.blocked ? await adminApi.unblockUser(id) : await adminApi.blockUser(id);
+      if (response?.success) {
+        showSuccess(`${action} successful`, `${user.name || user.email || 'User'} was ${user.blocked ? 'unblocked' : 'blocked'}.`);
+        await refreshAll();
+      } else {
+        showError(`${action} failed`, response?.message || `Unable to ${action.toLowerCase()} user`);
+      }
+    } catch (error) {
+      showError(`${action} failed`, error instanceof Error ? error.message : `Unable to ${action.toLowerCase()} user`);
+    } finally {
+      setActionBusy(false);
+      setBusyMessage('');
+    }
   }
 
   async function forceLogout(user: AdminUser) {
     const id = getId(user);
     if (!id || !can(role, 'users:control')) return;
     if (!window.confirm(`Force ${user.name || user.email || 'this user'} to sign in again?`)) return;
-    await adminApi.forceLogoutUser(id);
-    await refreshAll();
+
+    setActionBusy(true);
+    setBusyMessage('Forcing logout...');
+    try {
+      const response = await adminApi.forceLogoutUser(id);
+      if (response?.success) {
+        showSuccess('User forced offline', `${user.name || user.email || 'User'} will be signed out immediately.`);
+        await refreshAll();
+      } else {
+        showError('Force logout failed', response?.message || 'Unable to force logout');
+      }
+    } catch (error) {
+      showError('Force logout failed', error instanceof Error ? error.message : 'Unable to force logout');
+    } finally {
+      setActionBusy(false);
+      setBusyMessage('');
+    }
   }
 
   return (
@@ -712,20 +841,50 @@ function VariantManager({product, refreshAll, pushFeed}: {product: AdminProduct;
       if (value !== undefined) body.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
     });
     if (variantImage) body.append('images', variantImage);
-    if (editingId) await adminApi.updateVariant(product._id, editingId, body);
-    else await adminApi.createVariant(product._id, body);
-    pushFeed('Variant saved', `${product.title || product.name || 'Product'} variants were updated.`);
-    setEditingId('');
-    setDraft(emptyDraft);
-    setVariantImage(null);
-    await refreshAll();
+
+    setActionBusy(true);
+    setBusyMessage(editingId ? 'Updating variant...' : 'Creating variant...');
+    try {
+      const response = editingId
+        ? await adminApi.updateVariant(product._id, editingId, body)
+        : await adminApi.createVariant(product._id, body);
+
+      if (response?.success) {
+        showSuccess('Variant saved', `${product.title || product.name || 'Product'} variants were updated.`);
+        setEditingId('');
+        setDraft(emptyDraft);
+        setVariantImage(null);
+        await refreshAll();
+      } else {
+        showError('Variant save failed', response?.message || 'Unable to save variant');
+      }
+    } catch (error) {
+      showError('Variant save failed', error instanceof Error ? error.message : 'Unable to save variant');
+    } finally {
+      setActionBusy(false);
+      setBusyMessage('');
+    }
   }
 
   async function deleteVariant(variant: AdminVariant) {
     if (!variant._id || !window.confirm(`Delete variant ${variant.value || variant.sku || ''}?`)) return;
-    await adminApi.deleteVariant(product._id, variant._id);
-    pushFeed('Variant deleted', `${variant.value || variant.sku || 'Variant'} was removed.`);
-    await refreshAll();
+
+    setActionBusy(true);
+    setBusyMessage('Deleting variant...');
+    try {
+      const response = await adminApi.deleteVariant(product._id, variant._id);
+      if (response?.success) {
+        showSuccess('Variant removed', `${variant.value || variant.sku || 'Variant'} was removed.`);
+        await refreshAll();
+      } else {
+        showError('Delete failed', response?.message || 'Unable to remove variant');
+      }
+    } catch (error) {
+      showError('Delete failed', error instanceof Error ? error.message : 'Unable to remove variant');
+    } finally {
+      setActionBusy(false);
+      setBusyMessage('');
+    }
   }
 
   return (
@@ -834,7 +993,7 @@ function Products({products, refreshAll, role, pushFeed}: {products: AdminProduc
     event.preventDefault();
     if (!canCreateProducts) return;
     if (!imageFiles.length) {
-      pushFeed('Image required', 'Upload at least one product image before creating a product.');
+      showError('Image required', 'Upload at least one product image before creating a product.');
       return;
     }
 
@@ -856,25 +1015,38 @@ function Products({products, refreshAll, role, pushFeed}: {products: AdminProduc
     payload.append('isPublished', String(form.isPublished));
     imageFiles.forEach(file => payload.append('images', file));
 
+    setActionBusy(true);
+    setBusyMessage('Creating product...');
     setUploadProgress(35);
-    await adminApi.createProduct(payload);
-    setUploadProgress(100);
-    pushFeed('Product created', `${form.title} was published in ${form.category} / ${form.subCategory}.`);
-    setForm(current => ({
-      ...current,
-      title: '',
-      description: '',
-      price: '',
-      discountedPrice: '',
-      stock: '',
-      sku: '',
-      brand: '',
-      tags: '',
-      attributes: {},
-    }));
-    setImageFiles([]);
-    await refreshAll();
-    setTimeout(() => setUploadProgress(0), 800);
+
+    try {
+      const response = await adminApi.createProduct(payload);
+      if (response?.data?.product) {
+        showSuccess('Product created', `${form.title} was published in ${form.category} / ${form.subCategory}.`);
+        setForm(current => ({
+          ...current,
+          title: '',
+          description: '',
+          price: '',
+          discountedPrice: '',
+          stock: '',
+          sku: '',
+          brand: '',
+          tags: '',
+          attributes: {},
+        }));
+        setImageFiles([]);
+        await refreshAll();
+      } else {
+        showError('Create product failed', response?.message || 'Unable to create product');
+      }
+    } catch (error) {
+      showError('Create product failed', error instanceof Error ? error.message : 'Unable to create product');
+    } finally {
+      setActionBusy(false);
+      setBusyMessage('');
+      setTimeout(() => setUploadProgress(0), 800);
+    }
   }
 
   async function deleteProduct(product: AdminProduct) {
@@ -884,22 +1056,48 @@ function Products({products, refreshAll, role, pushFeed}: {products: AdminProduc
       return;
     }
 
-    await adminApi.deleteProduct(product._id);
-    pushFeed('Product deleted', `${title} was removed from the live catalog.`);
-    await refreshAll();
+    setActionBusy(true);
+    setBusyMessage(`Deleting ${title}...`);
+    try {
+      const response = await adminApi.deleteProduct(product._id);
+      if (response?.success) {
+        showSuccess('Product deleted', `${title} was removed from the live catalog.`);
+        await refreshAll();
+      } else {
+        showError('Delete failed', response?.message || 'Unable to delete product');
+      }
+    } catch (error) {
+      showError('Delete product failed', error instanceof Error ? error.message : 'Unable to delete product');
+    } finally {
+      setActionBusy(false);
+      setBusyMessage('');
+    }
   }
 
   async function updateStock(product: AdminProduct) {
     if (!canManageInventory) return;
     const nextStock = Number(stockDrafts[product._id] ?? product.stock ?? 0);
     if (!Number.isFinite(nextStock) || nextStock < 0) {
-      pushFeed('Invalid stock', 'Stock must be a positive number.');
+      showError('Invalid stock', 'Stock must be a positive number.');
       return;
     }
 
-    await adminApi.updateInventory(product._id, {stock: nextStock});
-    pushFeed('Inventory updated', `${product.title || product.name || 'Product'} stock set to ${nextStock}.`);
-    await refreshAll();
+    setActionBusy(true);
+    setBusyMessage('Updating stock...');
+    try {
+      const response = await adminApi.updateInventory(product._id, {stock: nextStock});
+      if (response?.success) {
+        showSuccess('Inventory updated', `${product.title || product.name || 'Product'} stock set to ${nextStock}.`);
+        await refreshAll();
+      } else {
+        showError('Stock update failed', response?.message || 'Unable to update inventory');
+      }
+    } catch (error) {
+      showError('Stock update failed', error instanceof Error ? error.message : 'Unable to update inventory');
+    } finally {
+      setActionBusy(false);
+      setBusyMessage('');
+    }
   }
 
   return (
@@ -1051,8 +1249,22 @@ function Products({products, refreshAll, role, pushFeed}: {products: AdminProduc
 function Orders({orders, refreshAll, role}: {orders: AdminOrder[]; refreshAll: () => Promise<void>; role: string}) {
   async function updateStatus(order: AdminOrder, orderStatus: string) {
     if (!can(role, 'orders:update')) return;
-    await adminApi.updateOrderStatus(order._id, orderStatus);
-    await refreshAll();
+    setActionBusy(true);
+    setBusyMessage('Saving order status...');
+    try {
+      const response = await adminApi.updateOrderStatus(order._id, orderStatus);
+      if (response?.success) {
+        showSuccess('Order updated', `Order ${order._id} status changed to ${orderStatus}.`);
+        await refreshAll();
+      } else {
+        showError('Update failed', response?.message || 'Unable to update order status');
+      }
+    } catch (error) {
+      showError('Update failed', error instanceof Error ? error.message : 'Unable to update order status');
+    } finally {
+      setActionBusy(false);
+      setBusyMessage('');
+    }
   }
 
   return (
@@ -1061,25 +1273,39 @@ function Orders({orders, refreshAll, role}: {orders: AdminOrder[]; refreshAll: (
         <table>
           <thead><tr><th>Customer</th><th>Status</th><th>Items</th><th>Created</th><th>Action</th></tr></thead>
           <tbody>
-            {orders.map(order => (
-              <tr key={order._id}>
-                <td>{order.user?.name || 'Customer'}<small>{maskEmail(order.user?.email)}</small></td>
-                <td>{order.orderStatus || 'pending'}</td>
-                <td>{order.items?.map(item => `${item.quantity || 0}x ${item.title || 'item'}`).join(', ') || 'n/a'}</td>
-                <td>{formatDate(order.createdAt)}</td>
-                <td>
-                  <select
-                    disabled={!can(role, 'orders:update')}
-                    value={order.orderStatus || 'order-confirmed'}
-                    onChange={event => updateStatus(order, event.target.value)}>
-                    {['order-confirmed', 'packed', 'shipped', 'out-for-delivery', 'delivered'].map(status => (
-                      <option key={status} value={status}>{orderStatusLabels[status] || status}</option>
-                    ))}
-                  </select>
-                  <small>{order.statusHistory?.map(item => item.label || item.status).join(' → ') || 'No checkpoints yet'}</small>
-                </td>
-              </tr>
-            ))}
+            {orders.map(order => {
+              const currentStatus = order.orderStatus || 'pending';
+              const updateOptions = [
+                'pending',
+                'processing',
+                'order-confirmed',
+                'packed',
+                'shipped',
+                'out-for-delivery',
+                'delivered',
+                'cancelled',
+              ];
+
+              return (
+                <tr key={order._id}>
+                  <td>{order.user?.name || 'Customer'}<small>{maskEmail(order.user?.email)}</small></td>
+                  <td>{orderStatusLabels[currentStatus] || currentStatus}</td>
+                  <td>{order.items?.map(item => `${item.quantity || 0}x ${item.title || 'item'}`).join(', ') || 'n/a'}</td>
+                  <td>{formatDate(order.createdAt)}</td>
+                  <td>
+                    <select
+                      disabled={!can(role, 'orders:update')}
+                      value={currentStatus}
+                      onChange={event => updateStatus(order, event.target.value)}>
+                      {updateOptions.map(status => (
+                        <option key={status} value={status}>{orderStatusLabels[status] || status}</option>
+                      ))}
+                    </select>
+                    <small>{order.statusHistory?.map(item => item.label || item.status).join(' → ') || 'No checkpoints yet'}</small>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

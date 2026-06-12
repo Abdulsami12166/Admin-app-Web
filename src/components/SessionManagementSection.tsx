@@ -1,12 +1,21 @@
 import React, { useEffect, useState } from 'react';
+import { sessionsApi } from '../services/sessions';
 
 interface AdminSession {
-  id: string;
+  _id: string;
+  sessionToken: string;
   adminEmail: string;
+  adminUser?: {
+    _id?: string;
+    name?: string;
+    email?: string;
+  };
   ipAddress: string;
-  loginTime: string;
-  lastActivityTime: string;
-  status: 'active' | 'terminated';
+  userAgent?: string;
+  loginAt: string;
+  lastActivityAt: string;
+  logoutAt?: string;
+  isActive: boolean;
 }
 
 interface SessionManagementSectionProps {
@@ -23,37 +32,16 @@ export function SessionManagementSection({ onError, onSuccess }: SessionManageme
   const loadSessions = async () => {
     setLoading(true);
     try {
-      // Mock data
-      const mockSessions = [
-        {
-          id: 'sess_1',
-          adminEmail: 'admin@example.com',
-          ipAddress: '192.168.1.1',
-          loginTime: new Date(Date.now() - 3600000).toISOString(),
-          lastActivityTime: new Date().toISOString(),
-          status: 'active' as const,
-        },
-        {
-          id: 'sess_2',
-          adminEmail: 'manager@example.com',
-          ipAddress: '192.168.1.5',
-          loginTime: new Date(Date.now() - 7200000).toISOString(),
-          lastActivityTime: new Date(Date.now() - 1800000).toISOString(),
-          status: 'active' as const,
-        },
-        {
-          id: 'sess_3',
-          adminEmail: 'support@example.com',
-          ipAddress: '192.168.1.10',
-          loginTime: new Date(Date.now() - 86400000).toISOString(),
-          lastActivityTime: new Date(Date.now() - 86400000).toISOString(),
-          status: 'terminated' as const,
-        },
-      ];
-      setSessions(mockSessions);
+      const response = await sessionsApi.getActiveSessions();
+      const data = response?.data || [];
+      setSessions(data.map((session: any) => ({
+        ...session,
+        loginAt: session.loginAt || session.createdAt,
+        lastActivityAt: session.lastActivityAt || session.updatedAt,
+      })));
       setStats({
-        active: mockSessions.filter(s => s.status === 'active').length,
-        total: mockSessions.length,
+        active: data.filter((session: any) => session.isActive).length,
+        total: data.length,
       });
     } catch (err) {
       onError(`Failed to load sessions: ${err}`);
@@ -62,19 +50,23 @@ export function SessionManagementSection({ onError, onSuccess }: SessionManageme
     }
   };
 
-  const handleForceLogout = async (sessionId: string) => {
+  const handleForceLogout = async (sessionToken: string) => {
+    setLoading(true);
     try {
-      const updatedSessions = sessions.map(s => 
-        s.id === sessionId ? { ...s, status: 'terminated' as const } : s
+      await sessionsApi.forceLogout(sessionToken);
+      const updatedSessions = sessions.map(s =>
+        s.sessionToken === sessionToken ? { ...s, isActive: false, logoutAt: new Date().toISOString() } : s
       );
       setSessions(updatedSessions);
       setStats({
-        active: updatedSessions.filter(s => s.status === 'active').length,
+        active: updatedSessions.filter(s => s.isActive).length,
         total: updatedSessions.length,
       });
       onSuccess('Session terminated successfully');
     } catch (err) {
       onError(`Failed to terminate session: ${err}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -82,86 +74,107 @@ export function SessionManagementSection({ onError, onSuccess }: SessionManageme
     loadSessions();
   }, []);
 
-  const filteredSessions = sessions.filter(s => 
-    filter === 'all' ? true : s.status === filter
-  );
+  const filteredSessions = sessions.filter(s => {
+    if (filter === 'all') return true;
+    return filter === 'active' ? s.isActive : !s.isActive;
+  });
 
   return (
     <div style={{ padding: '20px' }}>
-      <h2>Session Management</h2>
-
-      <div style={{ background: '#f5f5f5', padding: '15px', borderRadius: '5px', marginBottom: '20px', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', marginBottom: '20px' }}>
         <div>
-          <strong>Active Sessions:</strong>
-          <p style={{ fontSize: '24px', color: '#28a745' }}>{stats.active}</p>
+          <h2>Session Management</h2>
+          <p style={{ color: '#9aa', margin: '0.5rem 0 0' }}>Monitor active admin sessions and revoke access immediately.</p>
         </div>
-        <div>
-          <strong>Total Sessions:</strong>
-          <p style={{ fontSize: '24px', color: '#007bff' }}>{stats.total}</p>
-        </div>
-      </div>
-
-      <div style={{ marginBottom: '20px' }}>
-        <label style={{ marginRight: '10px' }}>Filter:</label>
-        <select
-          value={filter}
-          onChange={(e) => setFilter(e.target.value as any)}
-          style={{ padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+        <button
+          className="secondary"
+          onClick={loadSessions}
+          disabled={loading}
+          style={{ height: '40px' }}
         >
-          <option value="all">All Sessions</option>
-          <option value="active">Active Only</option>
-          <option value="terminated">Terminated Only</option>
-        </select>
+          {loading ? 'Refreshing...' : 'Refresh sessions'}
+        </button>
       </div>
 
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <thead>
-          <tr style={{ background: '#f5f5f5' }}>
-            <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Admin Email</th>
-            <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>IP Address</th>
-            <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Login Time</th>
-            <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Last Activity</th>
-            <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Status</th>
-            <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredSessions.map((session) => (
-            <tr key={session.id} style={{ borderBottom: '1px solid #eee' }}>
-              <td style={{ padding: '10px' }}>{session.adminEmail}</td>
-              <td style={{ padding: '10px' }}>{session.ipAddress}</td>
-              <td style={{ padding: '10px' }}>{new Date(session.loginTime).toLocaleString()}</td>
-              <td style={{ padding: '10px' }}>{new Date(session.lastActivityTime).toLocaleString()}</td>
-              <td style={{ padding: '10px' }}>
-                <span style={{
-                  background: session.status === 'active' ? '#d4edda' : '#f8d7da',
-                  padding: '4px 8px',
-                  borderRadius: '3px',
-                }}>
-                  {session.status}
-                </span>
-              </td>
-              <td style={{ padding: '10px' }}>
-                {session.status === 'active' && (
-                  <button
-                    onClick={() => handleForceLogout(session.id)}
-                    style={{
-                      padding: '5px 10px',
-                      background: '#dc3545',
-                      color: 'white',
-                      border: 'none',
-                      cursor: 'pointer',
-                      borderRadius: '4px',
-                    }}
-                  >
-                    Force Logout
-                  </button>
-                )}
-              </td>
+      <div style={{ background: '#0f1a2a', padding: '15px', borderRadius: '16px', marginBottom: '20px', display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '10px' }}>
+        <div style={{ padding: '1rem', border: '1px solid #28425f', borderRadius: '16px' }}>
+          <strong style={{ display: 'block', marginBottom: '0.5rem' }}>Active sessions</strong>
+          <p style={{ fontSize: '2rem', margin: 0, color: '#63d2ff' }}>{stats.active}</p>
+        </div>
+        <div style={{ padding: '1rem', border: '1px solid #28425f', borderRadius: '16px' }}>
+          <strong style={{ display: 'block', marginBottom: '0.5rem' }}>Total sessions</strong>
+          <p style={{ fontSize: '2rem', margin: 0, color: '#7bc0ff' }}>{stats.total}</p>
+        </div>
+        <div style={{ padding: '1rem', border: '1px solid #28425f', borderRadius: '16px' }}>
+          <strong style={{ display: 'block', marginBottom: '0.5rem' }}>Filter</strong>
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value as any)}
+            style={{ width: '100%', padding: '8px', border: '1px solid #28425f', borderRadius: '12px', background: '#06101d', color: '#eef4fb' }}
+          >
+            <option value="all">All sessions</option>
+            <option value="active">Active only</option>
+            <option value="terminated">Terminated only</option>
+          </select>
+        </div>
+      </div>
+
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ background: '#102033' }}>
+              <th style={{ padding: '12px 16px', textAlign: 'left', borderBottom: '1px solid #28425f' }}>Admin</th>
+              <th style={{ padding: '12px 16px', textAlign: 'left', borderBottom: '1px solid #28425f' }}>IP Address</th>
+              <th style={{ padding: '12px 16px', textAlign: 'left', borderBottom: '1px solid #28425f' }}>Login</th>
+              <th style={{ padding: '12px 16px', textAlign: 'left', borderBottom: '1px solid #28425f' }}>Last activity</th>
+              <th style={{ padding: '12px 16px', textAlign: 'left', borderBottom: '1px solid #28425f' }}>Status</th>
+              <th style={{ padding: '12px 16px', textAlign: 'left', borderBottom: '1px solid #28425f' }}>Actions</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {filteredSessions.map((session) => (
+              <tr key={session._id} style={{ borderBottom: '1px solid #1d283b' }}>
+                <td style={{ padding: '12px 16px' }}>{session.adminUser?.email || session.adminEmail}</td>
+                <td style={{ padding: '12px 16px' }}>{session.ipAddress}</td>
+                <td style={{ padding: '12px 16px' }}>{new Date(session.loginAt).toLocaleString()}</td>
+                <td style={{ padding: '12px 16px' }}>{new Date(session.lastActivityAt).toLocaleString()}</td>
+                <td style={{ padding: '12px 16px' }}>
+                  <span style={{
+                    display: 'inline-block',
+                    padding: '6px 10px',
+                    borderRadius: '999px',
+                    background: session.isActive ? '#1f4f73' : '#4b1f23',
+                    color: '#eef4fb',
+                    fontWeight: 700,
+                  }}>
+                    {session.isActive ? 'active' : 'terminated'}
+                  </span>
+                </td>
+                <td style={{ padding: '12px 16px' }}>
+                  {session.isActive ? (
+                    <button
+                      onClick={() => handleForceLogout(session.sessionToken)}
+                      style={{
+                        padding: '8px 14px',
+                        background: '#dc3545',
+                        color: 'white',
+                        border: 'none',
+                        cursor: 'pointer',
+                        borderRadius: '10px',
+                      }}
+                      disabled={loading}
+                    >
+                      Force logout
+                    </button>
+                  ) : (
+                    <span style={{ color: '#9aa' }}>No actions</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {filteredSessions.length === 0 && (
         <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>

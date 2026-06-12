@@ -64,6 +64,8 @@ button:disabled {
 }
 
 .sidebar {
+  display: flex;
+  flex-direction: column;
   position: sticky;
   top: 0;
   height: 100vh;
@@ -108,8 +110,12 @@ td small,
 }
 
 .nav-list {
+  flex: 1 1 auto;
   display: grid;
   gap: 0.65rem;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+  margin-bottom: 1.5rem;
 }
 
 .nav-list button {
@@ -129,9 +135,7 @@ td small,
 }
 
 .session-card {
-  position: absolute;
-  left: 1.5rem;
-  right: 1.5rem;
+  position: sticky;
   bottom: 1.5rem;
   padding: 1rem;
   border: 1px solid #28425f;
