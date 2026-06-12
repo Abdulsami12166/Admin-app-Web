@@ -1,6 +1,7 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
+apply plugin: "com.google.gms.google-services"
 
 /**
  * React Native Config
@@ -84,6 +85,12 @@ dependencies {
 
     implementation 'androidx.multidex:multidex:2.0.1'
 
+    // Firebase BOM
+    implementation platform('com.google.firebase:firebase-bom:34.14.0')
+
+    // Firebase Cloud Messaging
+    implementation 'com.google.firebase:firebase-messaging'
+
     if (hermesEnabled.toBoolean()) {
 
         implementation("com.facebook.react:hermes-android")
@@ -93,3 +100,6 @@ dependencies {
         implementation jscFlavor
     }
 }
+
+// Apply the Google services plugin to enable Firebase features (requires google-services.json in android/app)
+apply plugin: 'com.google.gms.google-services'

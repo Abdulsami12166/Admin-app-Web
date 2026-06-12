@@ -16,6 +16,11 @@
         android:usesCleartextTraffic="${usesCleartextTraffic}"
         android:supportsRtl="true">
 
+        <!-- Default FCM notification channel id (used if incoming message has no channel) -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="ecommerce_system" />
+
         <activity
             android:name=".MainActivity"
             android:label="@string/app_name"
