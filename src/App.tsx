@@ -41,12 +41,14 @@ import { NotificationsSection } from './components/NotificationsSection';
 import { SessionManagementSection } from './components/SessionManagementSection';
 import { OrderTimelineSection } from './components/OrderTimelineSection';
 import { BulkOperationsSection } from './components/BulkOperationsSection';
+import AdminNavigation from './pages/AdminNavigation';
 
-type TabKey = 'dashboard' | 'access' | 'users' | 'products' | 'orders' | 'transactions' | 'analytics' | 'activity' | 'customers' | 'inventory' | 'shipments' | 'tickets' | 'invoices' | 'returns-refunds' | 'audit-logs' | 'settings' | 'feature-toggles' | 'notifications' | 'sessions' | 'order-timeline' | 'bulk-operations';
+type TabKey = 'dashboard' | 'admin-nav' | 'access' | 'users' | 'products' | 'orders' | 'transactions' | 'analytics' | 'activity' | 'customers' | 'inventory' | 'shipments' | 'tickets' | 'invoices' | 'returns-refunds' | 'audit-logs' | 'settings' | 'feature-toggles' | 'notifications' | 'sessions' | 'order-timeline' | 'bulk-operations';
 type FeedItem = {id: string; title: string; detail: string; createdAt: number};
 
 const tabs: Array<{key: TabKey; label: string; permission: Parameters<typeof can>[1]}> = [
   {key: 'dashboard', label: 'Dashboard', permission: 'dashboard:view'},
+  {key: 'admin-nav', label: 'Admin Nav', permission: 'admins:manage'},
   {key: 'access', label: 'Access', permission: 'admins:manage'},
   {key: 'users', label: 'Users', permission: 'users:view'},
   {key: 'customers', label: 'Customers', permission: 'users:view'},
@@ -314,9 +316,9 @@ export function App() {
         </div>
       </aside>
 
-      { (loading || actionBusy) && (
+      { actionBusy && (
         <LoadingOverlay
-          message={busyMessage || (loading ? 'Loading admin data...' : 'Processing request...')}
+          message={busyMessage || 'Processing request...'}
         />
       )}
       <main className="workspace">
@@ -339,6 +341,15 @@ export function App() {
         </header>
 
         {activeTab === 'dashboard' && <Dashboard metrics={metrics} feed={feed} adminRoles={adminRoles} />}
+        {activeTab === 'admin-nav' && (
+          <AdminNavigation
+            adminRoles={adminRoles}
+            manageableRoles={manageableRoles}
+            usersCount={users.length}
+            ordersCount={orders.length}
+            sessionsCount={adminUsers.length}
+          />
+        )}
         {activeTab === 'access' && (
           <Access
             role={role}
