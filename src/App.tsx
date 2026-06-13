@@ -42,13 +42,17 @@ import { SessionManagementSection } from './components/SessionManagementSection'
 import { OrderTimelineSection } from './components/OrderTimelineSection';
 import { BulkOperationsSection } from './components/BulkOperationsSection';
 import AdminNavigation from './pages/AdminNavigation';
+import AdminManagementSection from './components/AdminManagementSection';
+import UserHistorySection from './components/UserHistorySection';
 
-type TabKey = 'dashboard' | 'admin-nav' | 'access' | 'users' | 'products' | 'orders' | 'transactions' | 'analytics' | 'activity' | 'customers' | 'inventory' | 'shipments' | 'tickets' | 'invoices' | 'returns-refunds' | 'audit-logs' | 'settings' | 'feature-toggles' | 'notifications' | 'sessions' | 'order-timeline' | 'bulk-operations';
+type TabKey = 'dashboard' | 'admin-nav' | 'admin-management' | 'user-history' | 'access' | 'users' | 'products' | 'orders' | 'transactions' | 'analytics' | 'activity' | 'customers' | 'inventory' | 'shipments' | 'tickets' | 'invoices' | 'returns-refunds' | 'audit-logs' | 'settings' | 'feature-toggles' | 'notifications' | 'sessions' | 'order-timeline' | 'bulk-operations';
 type FeedItem = {id: string; title: string; detail: string; createdAt: number};
 
 const tabs: Array<{key: TabKey; label: string; permission: Parameters<typeof can>[1]}> = [
   {key: 'dashboard', label: 'Dashboard', permission: 'dashboard:view'},
   {key: 'admin-nav', label: 'Admin Nav', permission: 'admins:manage'},
+  {key: 'admin-management', label: 'Admin Management', permission: 'admins:manage'},
+  {key: 'user-history', label: 'User History', permission: 'users:view'},
   {key: 'access', label: 'Access', permission: 'admins:manage'},
   {key: 'users', label: 'Users', permission: 'users:view'},
   {key: 'customers', label: 'Customers', permission: 'users:view'},
@@ -349,6 +353,12 @@ export function App() {
             ordersCount={orders.length}
             sessionsCount={adminUsers.length}
           />
+        )}
+        {activeTab === 'admin-management' && can(role, 'admins:manage') && (
+          <AdminManagementSection onError={(m)=>showError('Error',m)} onSuccess={(m)=>showSuccess('Success',m)} />
+        )}
+        {activeTab === 'user-history' && can(role, 'users:view') && (
+          <UserHistorySection onError={(m)=>showError('Error',m)} onSuccess={(m)=>showSuccess('Success',m)} />
         )}
         {activeTab === 'access' && (
           <Access
