@@ -292,6 +292,18 @@ export const adminApi = Object.assign(adminApiFunction, {
       body: {orderStatus},
       auth: true,
     }),
+  // Refunds
+  getRefunds: (page = 1, limit = 20, status?: string) =>
+    apiRequest<{data: {refunds: any[]; pagination: any}}>(`/admin/refunds?page=${page}&limit=${limit}${status ? `&status=${status}` : ''}`, {auth: true}),
+  getRefundDetails: (refundId: string) => apiRequest<{data: {refund: any}}>(`/admin/refunds/${refundId}`, {auth: true}),
+  approveRefund: (refundId: string, body?: {actualRefundAmount?: number; notes?: string}) =>
+    apiRequest(`/admin/refunds/${refundId}/approve`, {method: 'POST', body, auth: true}),
+  rejectRefund: (refundId: string, body?: {reason?: string}) =>
+    apiRequest(`/admin/refunds/${refundId}/reject`, {method: 'POST', body, auth: true}),
+  processRefund: (refundId: string, body?: {paymentGateway?: string; transactionId?: string}) =>
+    apiRequest(`/admin/refunds/${refundId}/process`, {method: 'POST', body, auth: true}),
+  completeRefund: (refundId: string) => apiRequest(`/admin/refunds/${refundId}/complete`, {method: 'POST', auth: true}),
+  getRefundStats: () => apiRequest<{data: any}>(`/admin/refunds/stats`, {auth: true}),
 });
 
 export function getSocketBaseUrl() {

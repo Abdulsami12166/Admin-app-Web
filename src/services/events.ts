@@ -12,6 +12,9 @@ export const socketEvents = {
     PRODUCT_CREATED: 'product.created',
     ADMIN_ACTIVITY_CREATED: 'admin.activity.created',
     ADMIN_FORCE_LOGOUT: 'admin.user.force_logout',
+    REFUND_CREATED: 'refund.created',
+    REFUND_UPDATED: 'refund.updated',
+    REFUND_LEDGER_UPDATED: 'refund.ledger.updated',
   },
   LEGACY: {
     USER_LOGIN: 'user-login',

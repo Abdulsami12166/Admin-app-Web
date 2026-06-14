@@ -34,6 +34,7 @@ import { ShipmentsSection } from './components/ShipmentsSection';
 import { TicketsSection } from './components/TicketsSection';
 import { InvoicesSection } from './components/InvoicesSection';
 import { ReturnsRefundsSection } from './components/ReturnsRefundsSection';
+import RefundsAdminSection from './components/RefundsAdminSection';
 import { AuditLogsSection } from './components/AuditLogsSection';
 import { SettingsSection } from './components/SettingsSection';
 import { FeatureTogglesSection } from './components/FeatureTogglesSection';
@@ -407,10 +408,15 @@ export function App() {
           />
         )}
         {activeTab === 'returns-refunds' && can(role, 'returns:view') && (
-          <ReturnsRefundsSection 
-            onError={(msg) => pushFeed('Error', msg)} 
-            onSuccess={(msg) => pushFeed('Success', msg)} 
-          />
+          <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16}}>
+            <ReturnsRefundsSection 
+              onError={(msg) => pushFeed('Error', msg)} 
+              onSuccess={(msg) => pushFeed('Success', msg)} 
+            />
+            <div>
+              <RefundsAdminSection />
+            </div>
+          </div>
         )}
         {activeTab === 'orders' && <Orders orders={orders} refreshAll={refreshAll} role={role} />}
         {activeTab === 'transactions' && <Transactions transactions={transactions} />}

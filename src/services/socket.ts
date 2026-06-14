@@ -50,6 +50,15 @@ export function connectAdminSocket(onEvent: (title: string, detail: string) => v
   socket.on(socketEvents.DOMAIN.ADMIN_ACTIVITY_CREATED, payload =>
     onEvent('Admin activity', `${payload?.details || 'An admin action occurred.'}`),
   );
+  socket.on(socketEvents.DOMAIN.REFUND_CREATED, payload =>
+    onEvent('Refund created', `${payload?.refund?.refundAmount ? 'Refund requested' : 'Refund created'}`),
+  );
+  socket.on(socketEvents.DOMAIN.REFUND_UPDATED, payload =>
+    onEvent('Refund updated', `${payload?.refund?._id || 'A refund'} updated: ${payload?.refund?.status || ''}`),
+  );
+  socket.on(socketEvents.DOMAIN.REFUND_LEDGER_UPDATED, payload =>
+    onEvent('Refund ledger', `${payload?.message || 'Refund ledger updated'}`),
+  );
 
   return () => {
     socket?.disconnect();
