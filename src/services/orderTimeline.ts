@@ -11,27 +11,33 @@ export interface TimelineEvent {
 
 export interface OrderTimeline {
   orderId: string;
+  orderStatus?: string;
   events: TimelineEvent[];
 }
 
 export const orderTimelineApi = {
+  // GET /admin/orders/:orderId/timeline
   getOrderTimeline: async (orderId: string) => {
-    return adminApi.get(`/orders/${orderId}/timeline`);
+    return adminApi.get(`/admin/orders/${orderId}/timeline`);
   },
 
+  // POST /admin/orders/:orderId/timeline/event
   addTimelineEvent: async (orderId: string, data: Partial<TimelineEvent>) => {
-    return adminApi.post(`/orders/${orderId}/timeline/event`, data);
+    return adminApi.post(`/admin/orders/${orderId}/timeline/event`, data);
   },
 
+  // PATCH /admin/orders/:orderId/timeline/:eventId
   updateTimelineEvent: async (orderId: string, eventId: string, data: Partial<TimelineEvent>) => {
-    return adminApi.patch(`/orders/${orderId}/timeline/${eventId}`, data);
+    return adminApi.patch(`/admin/orders/${orderId}/timeline/${eventId}`, data);
   },
 
+  // GET /admin/orders/:orderId/timeline/lifecycle
   getOrderLifecycleHistory: async (orderId: string) => {
-    return adminApi.get(`/orders/${orderId}/timeline/lifecycle`);
+    return adminApi.get(`/admin/orders/${orderId}/timeline/lifecycle`);
   },
 
+  // GET /admin/timeline/stats
   getTimelineStats: async () => {
-    return adminApi.get('/timeline/stats');
+    return adminApi.get('/admin/timeline/stats');
   },
 };

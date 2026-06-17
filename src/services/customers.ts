@@ -6,9 +6,11 @@ export interface Customer {
   email: string;
   phone?: string;
   status: 'active' | 'blocked' | 'suspended';
+  isVerified?: boolean;
   totalOrders: number;
   totalSpent: number;
   lastLogin?: string;
+  lastLoginAt?: string;
   createdAt: string;
   updatedAt: string;
   lastActivityAt?: string;
@@ -79,11 +81,12 @@ export const customerApi = {
   },
 
   async blockCustomer(userId: string, reason: string) {
-    return adminApi(`/admin/customers/${userId}/block`, 'POST', {reason});
+    // Backend toggleCustomerStatus checks req.body.action to determine what to do
+    return adminApi(`/admin/customers/${userId}/block`, 'POST', {action: 'block', reason});
   },
 
   async unblockCustomer(userId: string) {
-    return adminApi(`/admin/customers/${userId}/unblock`, 'POST');
+    return adminApi(`/admin/customers/${userId}/unblock`, 'POST', {action: 'unblock'});
   },
 
   async getCustomerStats() {

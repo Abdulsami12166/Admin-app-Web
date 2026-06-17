@@ -73,6 +73,30 @@ export function TicketsSection({ onError, onSuccess }: TicketsProps) {
     loadTickets();
   }, [statusFilter, priorityFilter]);
 
+  // Real-time socket subscriptions
+  useEffect(() => {
+    const unsubCreated = subscribeAdminSocketEvent(socketEvents.DOMAIN.TICKET_CREATED, () => {
+      loadTickets();
+    });
+    const unsubUpdated = subscribeAdminSocketEvent(socketEvents.DOMAIN.TICKET_UPDATED, (payload: any) => {
+      loadTickets();
+      // If detail view is open, refresh it too
+      if (selectedTicket && payload?.ticketId && selectedTicket._id === String(payload.ticketId)) {
+        loadTicketDetail(String(payload.ticketId));
+      }
+    });
+    const unsubMessage = subscribeAdminSocketEvent(socketEvents.DOMAIN.TICKET_MESSAGE_ADDED, (payload: any) => {
+      if (selectedTicket && payload?.ticketId && selectedTicket._id === String(payload.ticketId)) {
+        loadTicketDetail(String(payload.ticketId));
+      }
+    });
+    return () => {
+      unsubCreated();
+      unsubUpdated();
+      unsubMessage();
+    };
+  }, [selectedTicket]);
+
   if (selectedTicket) {
     return (
       <div style={{ padding: '20px' }}>

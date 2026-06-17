@@ -54,8 +54,9 @@ export function CustomersSection({ onError, onSuccess }: CustomersProps) {
     setLoading(true);
     try {
       const result = await customerApi.getCustomers(page, 20, search, status, sortBy, sortOrder);
-      setCustomers(result.data?.customers || []);
-      setPagination(result.data?.pagination || {page, pages: 1, total: 0});
+      // Backend returns { success, data: [...], pagination: {...} } — data is the array directly
+      setCustomers(Array.isArray(result.data) ? result.data : (result.data as any)?.customers || []);
+      setPagination((result as any).pagination || (result.data as any)?.pagination || {page, pages: 1, total: 0});
     } catch (err) {
       onError(`Failed to load customers: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -71,9 +72,12 @@ export function CustomersSection({ onError, onSuccess }: CustomersProps) {
         customerApi.getCustomerActivityLogs(customerId),
         customerApi.getCustomerNotificationPreferences(customerId),
       ]);
+      // getCustomerDetails returns { data: { customer, activityLogs, preferences } }
       setSelectedCustomer(detail.data?.customer || null);
-      setActivityLogs(logs.data?.logs || []);
-      setPreferences(prefs.data?.preferences || null);
+      // getCustomerActivityLogs returns { data: [...logs], pagination } — data is the array directly
+      setActivityLogs(Array.isArray(logs.data) ? logs.data : logs.data?.logs || []);
+      // getNotificationPreferences returns { data: preferences } — data is the object directly
+      setPreferences((prefs.data as any)?.preferences ?? (prefs.data && !Array.isArray(prefs.data) ? prefs.data as any : null));
     } catch (err) {
       onError(`Failed to load customer detail: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
