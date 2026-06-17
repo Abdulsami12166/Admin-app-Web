@@ -16,11 +16,7 @@ export function FeatureTogglesSection({ onError, onSuccess }: FeatureTogglesProp
   const loadFeatures = async () => {
     setLoading(true);
     try {
-      const result = await featureTogglesApi.getFeatureToggles(
-        1,
-        50,
-        categoryFilter ? { category: categoryFilter } : undefined
-      );
+      const result = await featureTogglesApi.getFeatureToggles(1, 50, categoryFilter ? { category: categoryFilter } : undefined);
       setFeatures(result.data?.features || []);
     } catch (err) {
       onError(`Failed to load features: ${String(err)}`);
@@ -38,6 +34,9 @@ export function FeatureTogglesSection({ onError, onSuccess }: FeatureTogglesProp
       }
       onSuccess(`Feature ${currentState ? 'disabled' : 'enabled'}`);
       loadFeatures();
+      if (selectedFeature?.name === name) {
+        setSelectedFeature(prev => prev ? { ...prev, isEnabled: !currentState } : null);
+      }
     } catch (err) {
       onError(`Failed to toggle feature: ${String(err)}`);
     }
@@ -53,98 +52,65 @@ export function FeatureTogglesSection({ onError, onSuccess }: FeatureTogglesProp
     }
   };
 
-  useEffect(() => {
-    loadFeatures();
-  }, [categoryFilter]);
+  useEffect(() => { loadFeatures(); }, [categoryFilter]);
 
   if (selectedFeature) {
     return (
-      <div style={{ padding: '20px' }}>
-        <button
-          onClick={() => setSelectedFeature(null)}
-          style={{ marginBottom: '20px' }}
-        >
-          ← Back
-        </button>
+      <div style={{ padding: '1.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
+          <button className="secondary" onClick={() => setSelectedFeature(null)}>← Back</button>
+          <h2 style={{ margin: 0 }}>{selectedFeature.displayName || selectedFeature.name}</h2>
+          <span className={`badge ${selectedFeature.isEnabled ? 'badge-success' : 'badge-neutral'}`}>
+            {selectedFeature.isEnabled ? 'Enabled' : 'Disabled'}
+          </span>
+        </div>
 
-        <h2>{selectedFeature.displayName || selectedFeature.name}</h2>
-        <p>{selectedFeature.description}</p>
+        {selectedFeature.description && (
+          <p style={{ color: '#9fb6cb', marginBottom: '1.25rem' }}>{selectedFeature.description}</p>
+        )}
 
-        <div
-          style={{
-            background: '#f5f5f5',
-            padding: '15px',
-            borderRadius: '5px',
-            marginTop: '20px',
-          }}
-        >
-          <p>
-            <strong>Status:</strong>{' '}
-            {selectedFeature.isEnabled ? '✓ Enabled' : '✗ Disabled'}
-          </p>
-          <p>
-            <strong>Rollout:</strong> {selectedFeature.rolloutPercentage}%
-          </p>
-          <p>
-            <strong>Category:</strong> {selectedFeature.category}
-          </p>
-          <p>
-            <strong>Visibility:</strong> {selectedFeature.visibility}
-          </p>
+        <div className="detail-grid">
+          <div className="section-box kv-list">
+            <h3 style={{ margin: '0 0 1rem', color: '#63d2ff', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Feature Info</h3>
+            <p><strong>Status</strong> {selectedFeature.isEnabled ? '✓ Enabled' : '✗ Disabled'}</p>
+            <p><strong>Rollout</strong> {selectedFeature.rolloutPercentage}%</p>
+            <p><strong>Category</strong> {selectedFeature.category || '—'}</p>
+            <p><strong>Visibility</strong> {selectedFeature.visibility || '—'}</p>
+            {selectedFeature.performance && (
+              <>
+                <p><strong>Impact Level</strong> {selectedFeature.performance.impactLevel}</p>
+                <p><strong>Est. Latency</strong> {selectedFeature.performance.estimatedLatency}ms</p>
+              </>
+            )}
+          </div>
 
-          {selectedFeature.performance && (
-            <>
-              <p>
-                <strong>Impact Level:</strong> {selectedFeature.performance.impactLevel}
-              </p>
-              <p>
-                <strong>Est. Latency:</strong>{' '}
-                {selectedFeature.performance.estimatedLatency}ms
-              </p>
-            </>
-          )}
-
-          <div style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
-            <button
-              onClick={() =>
-                handleToggleFeature(selectedFeature.name, selectedFeature.isEnabled)
-              }
-              style={{
-                padding: '8px 16px',
-                background: selectedFeature.isEnabled ? '#ff6b6b' : '#51cf66',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-              }}
-            >
-              {selectedFeature.isEnabled ? 'Disable' : 'Enable'}
-            </button>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={rolloutPercentage}
-                onChange={(e) => setRolloutPercentage(Number(e.target.value))}
-                style={{ width: '150px' }}
-              />
-              <span>{rolloutPercentage}%</span>
-
+          <div className="section-box">
+            <h3 style={{ margin: '0 0 1rem', color: '#63d2ff', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Controls</h3>
+            <div style={{ display: 'grid', gap: '1rem' }}>
               <button
-                onClick={() => handleUpdateRollout(selectedFeature.name)}
-                style={{
-                  padding: '4px 8px',
-                  background: '#228be6',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '3px',
-                  cursor: 'pointer',
-                }}
+                onClick={() => handleToggleFeature(selectedFeature.name, selectedFeature.isEnabled)}
+                style={{ background: selectedFeature.isEnabled ? '#3a1a1a' : undefined }}
+                className={selectedFeature.isEnabled ? 'secondary danger-text' : ''}
               >
-                Update
+                {selectedFeature.isEnabled ? 'Disable Feature' : 'Enable Feature'}
               </button>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', color: '#9fb6cb', fontWeight: 700, fontSize: '0.85rem' }}>
+                  Rollout Percentage: <strong style={{ color: '#63d2ff' }}>{rolloutPercentage}%</strong>
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={rolloutPercentage}
+                  onChange={e => setRolloutPercentage(Number(e.target.value))}
+                  style={{ width: '100%', padding: 0, border: 0, background: 'transparent' }}
+                />
+                <button className="secondary" onClick={() => handleUpdateRollout(selectedFeature.name)} style={{ marginTop: '0.75rem' }}>
+                  Update Rollout
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -153,121 +119,53 @@ export function FeatureTogglesSection({ onError, onSuccess }: FeatureTogglesProp
   }
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h2>Feature Toggles</h2>
+    <div style={{ padding: '1.5rem' }}>
+      <h2 style={{ margin: '0 0 1.25rem' }}>Feature Toggles</h2>
 
-      <div style={{ marginBottom: '20px' }}>
+      <div className="section-filters">
         <input
           type="text"
-          placeholder="Filter by category"
+          placeholder="Filter by category…"
           value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
-          style={{
-            padding: '8px',
-            border: '1px solid #ddd',
-            borderRadius: '4px',
-            width: '200px',
-          }}
+          onChange={e => setCategoryFilter(e.target.value)}
+          style={{ width: 200 }}
         />
+        <button className="secondary" onClick={loadFeatures} style={{ marginLeft: 'auto' }}>Refresh</button>
       </div>
 
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <div className="table-card">
+        <table>
           <thead>
-            <tr style={{ background: '#f5f5f5' }}>
-              <th
-                style={{
-                  padding: '10px',
-                  textAlign: 'left',
-                  borderBottom: '1px solid #ddd',
-                }}
-              >
-                Feature Name
-              </th>
-              <th
-                style={{
-                  padding: '10px',
-                  textAlign: 'left',
-                  borderBottom: '1px solid #ddd',
-                }}
-              >
-                Status
-              </th>
-              <th
-                style={{
-                  padding: '10px',
-                  textAlign: 'left',
-                  borderBottom: '1px solid #ddd',
-                }}
-              >
-                Rollout
-              </th>
-              <th
-                style={{
-                  padding: '10px',
-                  textAlign: 'left',
-                  borderBottom: '1px solid #ddd',
-                }}
-              >
-                Category
-              </th>
-              <th
-                style={{
-                  padding: '10px',
-                  textAlign: 'left',
-                  borderBottom: '1px solid #ddd',
-                }}
-              >
-                Visibility
-              </th>
-              <th
-                style={{
-                  padding: '10px',
-                  textAlign: 'left',
-                  borderBottom: '1px solid #ddd',
-                }}
-              >
-                Action
-              </th>
+            <tr>
+              <th>Feature</th>
+              <th>Status</th>
+              <th>Rollout</th>
+              <th>Category</th>
+              <th>Visibility</th>
+              <th>Action</th>
             </tr>
           </thead>
-
           <tbody>
-            {features.map((feature) => (
-              <tr
-                key={feature._id}
-                style={{ borderBottom: '1px solid #eee' }}
-              >
-                <td style={{ padding: '10px' }}>
-                  {feature.displayName || feature.name}
-                </td>
-                <td style={{ padding: '10px' }}>
-                  <span
-                    style={{
-                      padding: '4px 8px',
-                      borderRadius: '3px',
-                      background: feature.isEnabled ? '#d3f9d8' : '#ffe0e0',
-                      color: feature.isEnabled ? '#2f7d32' : '#c00',
-                    }}
-                  >
+            {features.map(feature => (
+              <tr key={feature._id}>
+                <td style={{ fontWeight: 700 }}>{feature.displayName || feature.name}</td>
+                <td>
+                  <span className={`badge ${feature.isEnabled ? 'badge-success' : 'badge-neutral'}`}>
                     {feature.isEnabled ? 'Enabled' : 'Disabled'}
                   </span>
                 </td>
-                <td style={{ padding: '10px' }}>{feature.rolloutPercentage}%</td>
-                <td style={{ padding: '10px' }}>{feature.category || 'N/A'}</td>
-                <td style={{ padding: '10px' }}>{feature.visibility}</td>
-                <td style={{ padding: '10px' }}>
-                  <button
-                    onClick={() => setSelectedFeature(feature)}
-                    style={{
-                      padding: '4px 8px',
-                      background: '#228be6',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '3px',
-                      cursor: 'pointer',
-                    }}
-                  >
+                <td>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <div style={{ flex: 1, background: '#0a1728', borderRadius: '999px', height: 6, overflow: 'hidden' }}>
+                      <div style={{ width: `${feature.rolloutPercentage}%`, height: '100%', background: '#63d2ff' }} />
+                    </div>
+                    <small style={{ minWidth: 32 }}>{feature.rolloutPercentage}%</small>
+                  </div>
+                </td>
+                <td><small>{feature.category || '—'}</small></td>
+                <td><small>{feature.visibility || '—'}</small></td>
+                <td>
+                  <button className="secondary" onClick={() => { setSelectedFeature(feature); setRolloutPercentage(feature.rolloutPercentage); }}>
                     Manage
                   </button>
                 </td>
@@ -275,10 +173,9 @@ export function FeatureTogglesSection({ onError, onSuccess }: FeatureTogglesProp
             ))}
           </tbody>
         </table>
+        {!loading && !features.length && <div className="state-empty">No feature toggles found.</div>}
+        {loading && <div className="state-loading">Loading features…</div>}
       </div>
-
-      {loading && <p>Loading...</p>}
     </div>
   );
 }
-

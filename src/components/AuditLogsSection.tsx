@@ -6,6 +6,24 @@ interface AuditLogsProps {
   onSuccess: (msg: string) => void;
 }
 
+function severityBadge(severity: string) {
+  const map: Record<string, string> = {
+    critical: 'badge-danger',
+    warning: 'badge-warning',
+    info: 'badge-info',
+    low: 'badge-neutral',
+  };
+  return <span className={`badge ${map[severity] ?? 'badge-neutral'}`}>{severity}</span>;
+}
+
+function statusBadge(status: string) {
+  return (
+    <span className={`badge ${status === 'success' ? 'badge-success' : status === 'failure' ? 'badge-danger' : 'badge-neutral'}`}>
+      {status}
+    </span>
+  );
+}
+
 export function AuditLogsSection({ onError, onSuccess }: AuditLogsProps) {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(false);
@@ -41,87 +59,63 @@ export function AuditLogsSection({ onError, onSuccess }: AuditLogsProps) {
   }, [actionFilter]);
 
   return (
-    <div>
-      <h2>Audit Logs</h2>
+    <div style={{ padding: '1.5rem' }}>
+      <h2 style={{ margin: '0 0 1.25rem' }}>Audit Logs</h2>
 
-      <div style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
+      <div className="section-filters">
         <input
           type="text"
-          placeholder="Filter by action"
+          placeholder="Filter by action…"
           value={actionFilter}
-          onChange={(e) => setActionFilter(e.target.value)}
-          style={{ padding: '8px', border: '1px solid #ddd', borderRadius: '4px', flex: 1 }}
+          onChange={e => setActionFilter(e.target.value)}
+          style={{ maxWidth: 300 }}
         />
-        <button
-          onClick={() => handleExport('json')}
-          style={{
-            padding: '8px 16px',
-            background: '#228be6',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-          }}>
-          Export JSON
-        </button>
-        <button
-          onClick={() => handleExport('csv')}
-          style={{
-            padding: '8px 16px',
-            background: '#228be6',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-          }}>
-          Export CSV
+        <button className="secondary" onClick={() => handleExport('json')}>Export JSON</button>
+        <button className="secondary" onClick={() => handleExport('csv')}>Export CSV</button>
+        <button className="secondary" onClick={loadAuditLogs} style={{ marginLeft: 'auto' }}>
+          Refresh
         </button>
       </div>
 
-      <div
-        style={{
-          background: '#f5f5f5',
-          padding: '15px',
-          borderRadius: '5px',
-          maxHeight: '600px',
-          overflowY: 'auto',
-        }}>
-        {logs.length > 0 ? (
-          logs.map((log) => (
-            <div
-              key={log._id}
-              style={{
-                marginBottom: '15px',
-                padding: '10px',
-                background: 'white',
-                borderRadius: '3px',
-                borderLeft: `4px solid ${
-                  log.severity === 'critical'
-                    ? '#ff6b6b'
-                    : log.severity === 'warning'
-                      ? '#fcc419'
-                      : '#51cf66'
-                }`,
-              }}>
-              <strong>{log.action}</strong> on {log.entityType}
-              <br />
-              <small>
-                By: {log.actor} | Status: {log.status}
-              </small>
-              <br />
-              <small>{new Date(log.createdAt).toLocaleString()}</small>
-              {log.failureReason && (
-                <p style={{ color: '#ff6b6b', margin: '5px 0 0 0' }}>Error: {log.failureReason}</p>
-              )}
-            </div>
-          ))
-        ) : (
-          <p>No audit logs found</p>
+      <div className="table-card">
+        <table>
+          <thead>
+            <tr>
+              <th>Action</th>
+              <th>Entity</th>
+              <th>Actor</th>
+              <th>Severity</th>
+              <th>Status</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            {logs.map(log => (
+              <div key={log._id}>
+                <tr>
+                  <td style={{ fontWeight: 700 }}>{log.action}</td>
+                  <td><small>{log.entityType || '—'}</small></td>
+                  <td><small>{log.actor || '—'}</small></td>
+                  <td>{severityBadge(log.severity || 'info')}</td>
+                  <td>{statusBadge(log.status || 'info')}</td>
+                  <td><small>{new Date(log.createdAt).toLocaleString()}</small></td>
+                </tr>
+                {log.failureReason && (
+                  <tr>
+                    <td colSpan={6}>
+                      <small style={{ color: '#ff8b8b' }}>Error: {log.failureReason}</small>
+                    </td>
+                  </tr>
+                )}
+              </div>
+            ))}
+          </tbody>
+        </table>
+        {!loading && !logs.length && (
+          <div className="state-empty">No audit logs found. Actions performed by admins will appear here.</div>
         )}
+        {loading && <div className="state-loading">Loading audit logs…</div>}
       </div>
-
-      {loading && <p>Loading...</p>}
     </div>
   );
 }
-

@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 
-
 interface TimelineEvent {
   id: string;
   timestamp: string;
@@ -16,16 +15,18 @@ interface OrderTimelineSectionProps {
 
 export function OrderTimelineSection({ onError, onSuccess }: OrderTimelineSectionProps) {
   const [selectedOrderId, setSelectedOrderId] = useState('');
+  const [inputId, setInputId] = useState('');
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ event: '', description: '', actor: '' });
 
   const loadTimeline = async (orderId: string) => {
-    if (!orderId) return;
+    if (!orderId.trim()) return;
     setLoading(true);
+    setSelectedOrderId(orderId.trim());
     try {
-      const resp = await (await import('../services/orderTimeline')).orderTimelineApi.getOrderTimeline(orderId);
+      const resp = await (await import('../services/orderTimeline')).orderTimelineApi.getOrderTimeline(orderId.trim());
       const data = resp?.data;
       const events = data?.events || data?.timeline?.events || [];
       setTimelineEvents(events);
@@ -36,13 +37,11 @@ export function OrderTimelineSection({ onError, onSuccess }: OrderTimelineSectio
     }
   };
 
-
   const handleAddEvent = async () => {
     if (!formData.event || !formData.description) {
-      onError('Event and description are required');
+      onError('Event type and description are required');
       return;
     }
-
     try {
       const { orderTimelineApi } = await import('../services/orderTimeline');
       await orderTimelineApi.addTimelineEvent(selectedOrderId, {
@@ -59,132 +58,99 @@ export function OrderTimelineSection({ onError, onSuccess }: OrderTimelineSectio
     }
   };
 
-
   return (
-    <div style={{ padding: '20px' }}>
-      <h2>Order Timeline</h2>
+    <div style={{ padding: '1.5rem' }}>
+      <h2 style={{ margin: '0 0 1.25rem' }}>Order Timeline</h2>
 
-      <div style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
+      <div className="section-filters">
         <input
           type="text"
-          placeholder="Enter Order ID"
-          value={selectedOrderId}
-          onChange={(e) => setSelectedOrderId(e.target.value)}
-          style={{ flex: 1, padding: '10px', border: '1px solid #ddd', borderRadius: '4px' }}
+          placeholder="Enter Order ID…"
+          value={inputId}
+          onChange={e => setInputId(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && loadTimeline(inputId)}
+          style={{ flex: 1 }}
         />
-        <button
-          onClick={() => loadTimeline(selectedOrderId)}
-          style={{ padding: '10px 20px', background: '#007bff', color: 'white', border: 'none', cursor: 'pointer', borderRadius: '4px' }}
-        >
-          Load Timeline
+        <button onClick={() => loadTimeline(inputId)} disabled={loading || !inputId.trim()}>
+          {loading ? 'Loading…' : 'Load Timeline'}
         </button>
       </div>
 
       {selectedOrderId && (
-        <div>
-          <div style={{ marginBottom: '20px', background: '#f5f5f5', padding: '15px', borderRadius: '5px' }}>
-            <strong>Order ID:</strong> {selectedOrderId}
-            <br />
-            <strong>Total Events:</strong> {timelineEvents.length}
+        <>
+          <div className="section-box" style={{ marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <strong style={{ color: '#63d2ff' }}>Order ID:</strong>{' '}
+              <span style={{ fontFamily: 'monospace', color: '#dbe8f5' }}>{selectedOrderId}</span>
+              <small style={{ display: 'block', color: '#9fb6cb', marginTop: '0.3rem' }}>
+                {timelineEvents.length} event(s) found
+              </small>
+            </div>
+            <button className="secondary" onClick={() => { setShowForm(v => !v); }}>
+              {showForm ? 'Cancel' : '+ Add Event'}
+            </button>
           </div>
-
-          <button
-            onClick={() => setShowForm(!showForm)}
-            style={{
-              marginBottom: '15px',
-              padding: '10px 15px',
-              background: '#28a745',
-              color: 'white',
-              border: 'none',
-              cursor: 'pointer',
-              borderRadius: '4px',
-            }}
-          >
-            + Add Event
-          </button>
 
           {showForm && (
-            <div style={{ background: '#f5f5f5', padding: '15px', borderRadius: '5px', marginBottom: '20px' }}>
-              <input
-                type="text"
-                placeholder="Event type (e.g., order_shipped)"
-                value={formData.event}
-                onChange={(e) => setFormData({ ...formData, event: e.target.value })}
-                style={{ width: '100%', padding: '10px', marginBottom: '10px', border: '1px solid #ddd', borderRadius: '4px' }}
-              />
-              <input
-                type="text"
-                placeholder="Description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                style={{ width: '100%', padding: '10px', marginBottom: '10px', border: '1px solid #ddd', borderRadius: '4px' }}
-              />
-              <input
-                type="text"
-                placeholder="Actor (e.g., admin, system)"
-                value={formData.actor}
-                onChange={(e) => setFormData({ ...formData, actor: e.target.value })}
-                style={{ width: '100%', padding: '10px', marginBottom: '10px', border: '1px solid #ddd', borderRadius: '4px' }}
-              />
-              <button
-                onClick={handleAddEvent}
-                style={{ padding: '8px 15px', background: '#28a745', color: 'white', border: 'none', cursor: 'pointer', borderRadius: '4px', marginRight: '5px' }}
-              >
-                Add
-              </button>
-              <button
-                onClick={() => setShowForm(false)}
-                style={{ padding: '8px 15px', background: '#6c757d', color: 'white', border: 'none', cursor: 'pointer', borderRadius: '4px' }}
-              >
-                Cancel
-              </button>
-            </div>
-          )}
-
-          <div style={{ position: 'relative', paddingLeft: '40px' }}>
-            {timelineEvents.map((event, index) => (
-              <div key={event.id} style={{ marginBottom: '20px', position: 'relative' }}>
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: '-30px',
-                    top: '10px',
-                    width: '20px',
-                    height: '20px',
-                    background: '#007bff',
-                    borderRadius: '50%',
-                    border: '3px solid white',
-                  }}
+            <div className="section-box" style={{ marginBottom: '1.25rem' }}>
+              <h3 style={{ margin: '0 0 1rem', color: '#63d2ff', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Add Timeline Event</h3>
+              <div style={{ display: 'grid', gap: '0.75rem' }}>
+                <input
+                  type="text"
+                  placeholder="Event type (e.g. order_shipped)"
+                  value={formData.event}
+                  onChange={e => setFormData({ ...formData, event: e.target.value })}
                 />
-                {index < timelineEvents.length - 1 && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      left: '-20px',
-                      top: '30px',
-                      width: '2px',
-                      height: '40px',
-                      background: '#ddd',
-                    }}
-                  />
-                )}
-                <div style={{ background: '#f9f9f9', padding: '15px', borderRadius: '5px', border: '1px solid #eee' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <strong>{event.event}</strong>
-                    <span style={{ color: '#999', fontSize: '12px' }}>{new Date(event.timestamp).toLocaleString()}</span>
-                  </div>
-                  <p style={{ margin: '10px 0 0 0', color: '#555' }}>{event.description}</p>
-                  <small style={{ color: '#999' }}>Actor: {event.actor}</small>
+                <input
+                  type="text"
+                  placeholder="Description"
+                  value={formData.description}
+                  onChange={e => setFormData({ ...formData, description: e.target.value })}
+                />
+                <input
+                  type="text"
+                  placeholder="Actor (default: admin)"
+                  value={formData.actor}
+                  onChange={e => setFormData({ ...formData, actor: e.target.value })}
+                />
+                <div className="action-bar">
+                  <button onClick={handleAddEvent}>Add Event</button>
+                  <button className="secondary" onClick={() => setShowForm(false)}>Cancel</button>
                 </div>
               </div>
-            ))}
-          </div>
-
-          {timelineEvents.length === 0 && (
-            <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>
-              No timeline events found
             </div>
           )}
+
+          <section className="panel">
+            <h2>Timeline</h2>
+            {timelineEvents.length ? (
+              <div style={{ paddingLeft: '1rem' }}>
+                {timelineEvents.map((event, index) => (
+                  <div key={event.id || index} className="timeline-entry tl-info">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem' }}>
+                      <strong style={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.85rem' }}>
+                        {event.event.replace(/_/g, ' ')}
+                      </strong>
+                      <small style={{ color: '#9fb6cb', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                        {new Date(event.timestamp).toLocaleString()}
+                      </small>
+                    </div>
+                    <span style={{ color: '#dbe8f5', display: 'block', marginTop: '0.35rem' }}>{event.description}</span>
+                    <small>Actor: {event.actor}</small>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="state-empty">No timeline events found for this order.</div>
+            )}
+            {loading && <div className="state-loading">Loading timeline…</div>}
+          </section>
+        </>
+      )}
+
+      {!selectedOrderId && (
+        <div className="state-empty" style={{ marginTop: '2rem' }}>
+          Enter an Order ID above to view its timeline.
         </div>
       )}
     </div>

@@ -15,7 +15,6 @@ interface BulkOperationsSectionProps {
   onSuccess: (msg: string) => void;
 }
 
-// Normalize field name differences between operation types returned by the backend
 function normalizeOperation(op: any): BulkOperation {
   return {
     id: op.id || op._id || '',
@@ -25,6 +24,17 @@ function normalizeOperation(op: any): BulkOperation {
     totalItems: op.totalItems ?? op.totalProducts ?? op.totalUpdates ?? 0,
     processedItems: op.processedItems ?? op.processedProducts ?? op.processedUpdates ?? 0,
   };
+}
+
+function opStatusBadge(status: string) {
+  const map: Record<string, string> = {
+    completed: 'badge-success',
+    processing: 'badge-info',
+    scheduled: 'badge-warning',
+    failed: 'badge-danger',
+    cancelled: 'badge-danger',
+  };
+  return <span className={`badge ${map[status] ?? 'badge-neutral'}`}>{status}</span>;
 }
 
 export function BulkOperationsSection({ onError, onSuccess }: BulkOperationsSectionProps) {
@@ -40,7 +50,6 @@ export function BulkOperationsSection({ onError, onSuccess }: BulkOperationsSect
     categoryId: '',
     priceAdjustment: '',
     adjustmentType: 'percentage' as 'fixed' | 'percentage',
-    // Inventory update: comma-separated "productId:quantity" pairs
     inventoryUpdates: '',
   });
 
@@ -58,10 +67,7 @@ export function BulkOperationsSection({ onError, onSuccess }: BulkOperationsSect
   };
 
   const handleCreateOperation = async () => {
-    const productIdList = formData.productIds
-      .split(',')
-      .map(id => id.trim())
-      .filter(Boolean);
+    const productIdList = formData.productIds.split(',').map(id => id.trim()).filter(Boolean);
 
     if (operationType !== 'inventory' && productIdList.length === 0) {
       onError('Product IDs are required');
@@ -92,20 +98,14 @@ export function BulkOperationsSection({ onError, onSuccess }: BulkOperationsSect
         }
         result = await adminApi('/admin/bulk-operations/inventory', 'POST', { updates });
       } else if (operationType === 'category') {
-        if (!formData.categoryId.trim()) {
-          onError('Category ID is required');
-          return;
-        }
+        if (!formData.categoryId.trim()) { onError('Category ID is required'); return; }
         result = await adminApi('/admin/bulk-operations/category', 'POST', {
           productIds: productIdList,
           categoryId: formData.categoryId.trim(),
         });
       } else if (operationType === 'pricing') {
         const adj = parseFloat(formData.priceAdjustment);
-        if (isNaN(adj)) {
-          onError('Price adjustment must be a number');
-          return;
-        }
+        if (isNaN(adj)) { onError('Price adjustment must be a number'); return; }
         result = await adminApi('/admin/bulk-operations/pricing', 'POST', {
           productIds: productIdList,
           priceAdjustment: adj,
@@ -116,19 +116,11 @@ export function BulkOperationsSection({ onError, onSuccess }: BulkOperationsSect
       if (result?.data) {
         setOperations(prev => [normalizeOperation(result.data), ...prev]);
       }
-      setFormData({
-        productIds: '',
-        action: 'show',
-        scheduleDate: '',
-        categoryId: '',
-        priceAdjustment: '',
-        adjustmentType: 'percentage',
-        inventoryUpdates: '',
-      });
+      setFormData({ productIds: '', action: 'show', scheduleDate: '', categoryId: '', priceAdjustment: '', adjustmentType: 'percentage', inventoryUpdates: '' });
       setShowForm(false);
-      onSuccess('Bulk operation created successfully');
+      onSuccess('Bulk operation completed successfully');
     } catch (err) {
-      onError(`Failed to create operation: ${err instanceof Error ? err.message : String(err)}`);
+      onError(`Failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setSubmitting(false);
     }
@@ -137,233 +129,178 @@ export function BulkOperationsSection({ onError, onSuccess }: BulkOperationsSect
   const handleCancelOperation = async (opId: string) => {
     try {
       await adminApi(`/admin/bulk-operations/${opId}/cancel`, 'POST');
-      setOperations(prev =>
-        prev.map(op => op.id === opId ? { ...op, status: 'cancelled' } : op)
-      );
-      onSuccess('Bulk operation cancelled');
+      setOperations(prev => prev.map(op => op.id === opId ? { ...op, status: 'cancelled' } : op));
+      onSuccess('Operation cancelled');
     } catch (err) {
-      onError(`Failed to cancel operation: ${err instanceof Error ? err.message : String(err)}`);
+      onError(`Failed to cancel: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
-  useEffect(() => {
-    loadOperations();
-  }, []);
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed': return '#d4edda';
-      case 'processing': return '#cfe2ff';
-      case 'scheduled': return '#fff3cd';
-      case 'failed':
-      case 'cancelled': return '#f8d7da';
-      default: return '#e2e3e5';
-    }
-  };
+  useEffect(() => { loadOperations(); }, []);
 
   return (
-    <div style={{ padding: '20px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+    <div style={{ padding: '1.5rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
         <h2 style={{ margin: 0 }}>Bulk Operations</h2>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button
-            onClick={loadOperations}
-            disabled={loading}
-            style={{ padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 4, cursor: 'pointer' }}
-          >
+        <div className="action-bar" style={{ margin: 0 }}>
+          <button className="secondary" onClick={loadOperations} disabled={loading}>
             {loading ? 'Refreshing…' : 'Refresh'}
           </button>
-          <button
-            onClick={() => setShowForm(!showForm)}
-            style={{ padding: '10px 15px', background: '#28a745', color: 'white', border: 'none', cursor: 'pointer', borderRadius: '4px' }}
-          >
-            + New Bulk Operation
+          <button onClick={() => setShowForm(v => !v)}>
+            {showForm ? 'Cancel' : '+ New Bulk Operation'}
           </button>
         </div>
       </div>
 
       {showForm && (
-        <div style={{ background: '#f5f5f5', padding: '15px', borderRadius: '5px', marginBottom: '20px' }}>
-          <div style={{ marginBottom: '15px' }}>
-            <label style={{ display: 'block', marginBottom: '5px' }}>Operation Type:</label>
-            <select
-              value={operationType}
-              onChange={(e) => setOperationType(e.target.value)}
-              style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px' }}
-            >
-              <option value="visibility">Toggle Product Visibility</option>
-              <option value="inventory">Update Inventory</option>
-              <option value="category">Assign Category</option>
-              <option value="pricing">Update Pricing</option>
-            </select>
-          </div>
-
-          {operationType !== 'inventory' && (
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '5px' }}>Product IDs (comma-separated):</label>
-              <textarea
-                value={formData.productIds}
-                onChange={(e) => setFormData({ ...formData, productIds: e.target.value })}
-                placeholder="e.g., 64abc123, 64def456"
-                style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px', minHeight: '80px', boxSizing: 'border-box' }}
-              />
-            </div>
-          )}
-
-          {operationType === 'visibility' && (
-            <>
-              <div style={{ marginBottom: '15px' }}>
-                <label style={{ display: 'block', marginBottom: '5px' }}>Action:</label>
-                <select
-                  value={formData.action}
-                  onChange={(e) => setFormData({ ...formData, action: e.target.value })}
-                  style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px' }}
-                >
-                  <option value="show">Show Products</option>
-                  <option value="hide">Hide Products</option>
-                </select>
-              </div>
-              <div style={{ marginBottom: '15px' }}>
-                <label style={{ display: 'block', marginBottom: '5px' }}>Schedule Date (Optional):</label>
-                <input
-                  type="datetime-local"
-                  value={formData.scheduleDate}
-                  onChange={(e) => setFormData({ ...formData, scheduleDate: e.target.value })}
-                  style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px', boxSizing: 'border-box' }}
-                />
-              </div>
-            </>
-          )}
-
-          {operationType === 'inventory' && (
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '5px' }}>
-                Inventory Updates (format: <code>productId:quantity</code>, comma-separated):
+        <div className="section-box" style={{ marginBottom: '1.5rem' }}>
+          <h3 style={{ margin: '0 0 1rem', color: '#63d2ff', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>New Bulk Operation</h3>
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.4rem', color: '#9fb6cb', fontSize: '0.85rem', fontWeight: 700 }}>
+                Operation Type
               </label>
-              <textarea
-                value={formData.inventoryUpdates}
-                onChange={(e) => setFormData({ ...formData, inventoryUpdates: e.target.value })}
-                placeholder="e.g., 64abc123:50, 64def456:100"
-                style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px', minHeight: '80px', boxSizing: 'border-box' }}
-              />
+              <select value={operationType} onChange={e => setOperationType(e.target.value)}>
+                <option value="visibility">Toggle Product Visibility</option>
+                <option value="inventory">Update Inventory</option>
+                <option value="category">Assign Category</option>
+                <option value="pricing">Update Pricing</option>
+              </select>
             </div>
-          )}
 
-          {operationType === 'category' && (
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '5px' }}>Category ID:</label>
-              <input
-                type="text"
-                value={formData.categoryId}
-                onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
-                placeholder="e.g., 64abc789"
-                style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px', boxSizing: 'border-box' }}
-              />
-            </div>
-          )}
-
-          {operationType === 'pricing' && (
-            <>
-              <div style={{ marginBottom: '15px' }}>
-                <label style={{ display: 'block', marginBottom: '5px' }}>Adjustment Type:</label>
-                <select
-                  value={formData.adjustmentType}
-                  onChange={(e) => setFormData({ ...formData, adjustmentType: e.target.value as 'fixed' | 'percentage' })}
-                  style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px' }}
-                >
-                  <option value="percentage">Percentage (%)</option>
-                  <option value="fixed">Fixed Amount ($)</option>
-                </select>
-              </div>
-              <div style={{ marginBottom: '15px' }}>
-                <label style={{ display: 'block', marginBottom: '5px' }}>
-                  {formData.adjustmentType === 'percentage' ? 'Percentage Change (e.g. -10 for 10% off):' : 'Fixed Amount Change (e.g. -5 for $5 off):'}
+            {operationType !== 'inventory' && (
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.4rem', color: '#9fb6cb', fontSize: '0.85rem', fontWeight: 700 }}>
+                  Product IDs (comma-separated)
                 </label>
-                <input
-                  type="number"
-                  value={formData.priceAdjustment}
-                  onChange={(e) => setFormData({ ...formData, priceAdjustment: e.target.value })}
-                  placeholder={formData.adjustmentType === 'percentage' ? 'e.g., -10' : 'e.g., -5'}
-                  style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px', boxSizing: 'border-box' }}
+                <textarea
+                  value={formData.productIds}
+                  onChange={e => setFormData({ ...formData, productIds: e.target.value })}
+                  placeholder="e.g. 64abc123, 64def456"
+                  style={{ minHeight: 80 }}
                 />
               </div>
-            </>
-          )}
+            )}
 
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              onClick={handleCreateOperation}
-              disabled={submitting}
-              style={{ padding: '8px 15px', background: '#28a745', color: 'white', border: 'none', cursor: 'pointer', borderRadius: '4px' }}
-            >
-              {submitting ? 'Creating…' : 'Create'}
-            </button>
-            <button
-              onClick={() => setShowForm(false)}
-              style={{ padding: '8px 15px', background: '#6c757d', color: 'white', border: 'none', cursor: 'pointer', borderRadius: '4px' }}
-            >
-              Cancel
-            </button>
+            {operationType === 'visibility' && (
+              <>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.4rem', color: '#9fb6cb', fontSize: '0.85rem', fontWeight: 700 }}>Action</label>
+                  <select value={formData.action} onChange={e => setFormData({ ...formData, action: e.target.value })}>
+                    <option value="show">Show Products</option>
+                    <option value="hide">Hide Products</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.4rem', color: '#9fb6cb', fontSize: '0.85rem', fontWeight: 700 }}>Schedule Date (Optional)</label>
+                  <input
+                    type="datetime-local"
+                    value={formData.scheduleDate}
+                    onChange={e => setFormData({ ...formData, scheduleDate: e.target.value })}
+                  />
+                </div>
+              </>
+            )}
+
+            {operationType === 'inventory' && (
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.4rem', color: '#9fb6cb', fontSize: '0.85rem', fontWeight: 700 }}>
+                  Inventory Updates — format: <code style={{ color: '#63d2ff' }}>productId:quantity</code>, comma-separated
+                </label>
+                <textarea
+                  value={formData.inventoryUpdates}
+                  onChange={e => setFormData({ ...formData, inventoryUpdates: e.target.value })}
+                  placeholder="e.g. 64abc123:50, 64def456:100"
+                  style={{ minHeight: 80 }}
+                />
+              </div>
+            )}
+
+            {operationType === 'category' && (
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.4rem', color: '#9fb6cb', fontSize: '0.85rem', fontWeight: 700 }}>Category ID</label>
+                <input
+                  type="text"
+                  value={formData.categoryId}
+                  onChange={e => setFormData({ ...formData, categoryId: e.target.value })}
+                  placeholder="e.g. 64abc789"
+                />
+              </div>
+            )}
+
+            {operationType === 'pricing' && (
+              <>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.4rem', color: '#9fb6cb', fontSize: '0.85rem', fontWeight: 700 }}>Adjustment Type</label>
+                  <select value={formData.adjustmentType} onChange={e => setFormData({ ...formData, adjustmentType: e.target.value as 'fixed' | 'percentage' })}>
+                    <option value="percentage">Percentage (%)</option>
+                    <option value="fixed">Fixed Amount (₹)</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.4rem', color: '#9fb6cb', fontSize: '0.85rem', fontWeight: 700 }}>
+                    {formData.adjustmentType === 'percentage' ? 'Percentage change (e.g. -10 for 10% off)' : 'Fixed amount change (e.g. -500 for ₹500 off)'}
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.priceAdjustment}
+                    onChange={e => setFormData({ ...formData, priceAdjustment: e.target.value })}
+                    placeholder={formData.adjustmentType === 'percentage' ? 'e.g. -10' : 'e.g. -500'}
+                  />
+                </div>
+              </>
+            )}
+
+            <div className="action-bar">
+              <button onClick={handleCreateOperation} disabled={submitting}>
+                {submitting ? 'Creating…' : 'Create Operation'}
+              </button>
+              <button className="secondary" onClick={() => setShowForm(false)}>Cancel</button>
+            </div>
           </div>
         </div>
       )}
 
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <thead>
-          <tr style={{ background: '#f5f5f5' }}>
-            {['Operation ID', 'Type', 'Progress', 'Status', 'Created', 'Actions'].map(h => (
-              <th key={h} style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {operations.map((operation) => (
-            <tr key={operation.id} style={{ borderBottom: '1px solid #eee' }}>
-              <td style={{ padding: '10px', fontFamily: 'monospace', fontSize: 12 }}>{operation.id}</td>
-              <td style={{ padding: '10px' }}>{operation.type.replace('bulk_', '').replace(/_/g, ' ')}</td>
-              <td style={{ padding: '10px' }}>
-                <div style={{ background: '#e9ecef', borderRadius: '4px', overflow: 'hidden', minWidth: 80 }}>
-                  <div
-                    style={{
-                      background: '#28a745',
-                      width: operation.totalItems > 0 ? `${Math.min(100, (operation.processedItems / operation.totalItems) * 100)}%` : '0%',
-                      padding: '4px 8px',
-                      color: 'white',
-                      fontSize: '12px',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {operation.processedItems}/{operation.totalItems}
-                  </div>
-                </div>
-              </td>
-              <td style={{ padding: '10px' }}>
-                <span style={{ background: getStatusColor(operation.status), padding: '4px 8px', borderRadius: '3px' }}>
-                  {operation.status}
-                </span>
-              </td>
-              <td style={{ padding: '10px' }}>{new Date(operation.createdAt).toLocaleString()}</td>
-              <td style={{ padding: '10px' }}>
-                {(operation.status === 'processing' || operation.status === 'scheduled') && (
-                  <button
-                    onClick={() => handleCancelOperation(operation.id)}
-                    style={{ padding: '5px 10px', background: '#dc3545', color: 'white', border: 'none', cursor: 'pointer', borderRadius: '4px' }}
-                  >
-                    Cancel
-                  </button>
-                )}
-              </td>
+      <div className="table-card">
+        <table>
+          <thead>
+            <tr>
+              <th>Operation ID</th>
+              <th>Type</th>
+              <th>Progress</th>
+              <th>Status</th>
+              <th>Created</th>
+              <th>Actions</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-
-      {!loading && operations.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>
-          No bulk operations found. Create one using the button above.
-        </div>
-      )}
-      {loading && <div style={{ padding: 16, color: '#666' }}>Loading operations…</div>}
+          </thead>
+          <tbody>
+            {operations.map(op => {
+              const pct = op.totalItems > 0 ? Math.min(100, Math.round((op.processedItems / op.totalItems) * 100)) : 100;
+              return (
+                <tr key={op.id}>
+                  <td><small style={{ fontFamily: 'monospace', color: '#9fb6cb' }}>{op.id.slice(-12) || '—'}</small></td>
+                  <td style={{ fontWeight: 700 }}>{op.type.replace('bulk_', '').replace(/_/g, ' ')}</td>
+                  <td style={{ minWidth: 120 }}>
+                    <div style={{ background: '#0a1728', borderRadius: '999px', overflow: 'hidden', height: 8 }}>
+                      <div style={{ background: op.status === 'completed' ? '#43d17a' : op.status === 'failed' ? '#ff8b8b' : '#63d2ff', width: `${pct}%`, height: '100%', transition: 'width 0.3s' }} />
+                    </div>
+                    <small style={{ color: '#9fb6cb' }}>{op.processedItems}/{op.totalItems}</small>
+                  </td>
+                  <td>{opStatusBadge(op.status)}</td>
+                  <td><small>{new Date(op.createdAt).toLocaleString()}</small></td>
+                  <td>
+                    {(op.status === 'processing' || op.status === 'scheduled') && (
+                      <button className="secondary danger-text" onClick={() => handleCancelOperation(op.id)}>Cancel</button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        {!loading && !operations.length && <div className="state-empty">No bulk operations yet. Use the button above to start one.</div>}
+        {loading && <div className="state-loading">Loading operations…</div>}
+      </div>
     </div>
   );
 }

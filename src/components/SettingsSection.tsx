@@ -6,6 +6,8 @@ interface SettingsProps {
   onSuccess: (msg: string) => void;
 }
 
+const categories = ['general', 'shipping', 'payment', 'tax', 'notifications', 'security', 'performance'];
+
 export function SettingsSection({ onError, onSuccess }: SettingsProps) {
   const [settings, setSettings] = useState<StoreSetting[]>([]);
   const [loading, setLoading] = useState(false);
@@ -36,76 +38,79 @@ export function SettingsSection({ onError, onSuccess }: SettingsProps) {
     }
   };
 
-  useEffect(() => {
-    loadSettings();
-  }, [categoryFilter]);
-
-  const categories = ['general', 'shipping', 'payment', 'tax', 'notifications', 'security', 'performance'];
+  useEffect(() => { loadSettings(); }, [categoryFilter]);
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h2>Store Settings</h2>
-      <div style={{ marginBottom: '20px' }}>
-        <select
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
-          style={{ padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
-        >
+    <div style={{ padding: '1.5rem' }}>
+      <h2 style={{ margin: '0 0 1.25rem' }}>Store Settings</h2>
+
+      <div className="section-filters">
+        <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} style={{ width: 200 }}>
           <option value="">All Categories</option>
-          {categories.map((cat) => (
+          {categories.map(cat => (
             <option key={cat} value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1)}</option>
           ))}
         </select>
+        <button className="secondary" onClick={loadSettings} style={{ marginLeft: 'auto' }}>Refresh</button>
       </div>
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+
+      <div className="table-card">
+        <table>
           <thead>
-            <tr style={{ background: '#f5f5f5' }}>
-              <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Key</th>
-              <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Category</th>
-              <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Value</th>
-              <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Type</th>
-              <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Editable</th>
-              <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Action</th>
+            <tr>
+              <th>Key</th>
+              <th>Category</th>
+              <th>Value</th>
+              <th>Type</th>
+              <th>Editable</th>
+              <th>Action</th>
             </tr>
           </thead>
           <tbody>
-            {settings.map((setting) => (
-              <tr key={setting._id} style={{ borderBottom: '1px solid #eee' }}>
-                <td style={{ padding: '10px' }}>{setting.key}</td>
-                <td style={{ padding: '10px' }}>{setting.category}</td>
-                <td style={{ padding: '10px' }}>
+            {settings.map(setting => (
+              <tr key={setting._id}>
+                <td style={{ fontWeight: 700, color: '#63d2ff', fontFamily: 'monospace', fontSize: '0.85rem' }}>{setting.key}</td>
+                <td><span className="badge badge-neutral">{setting.category}</span></td>
+                <td>
                   {editingKey === setting.key ? (
                     <input
                       type="text"
                       value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      style={{ padding: '4px', border: '1px solid #ddd', borderRadius: '3px', width: '100px' }}
+                      onChange={e => setEditValue(e.target.value)}
+                      style={{ width: 160 }}
+                      autoFocus
                     />
                   ) : (
-                    <small>{JSON.stringify(setting.value).slice(0, 30)}...</small>
+                    <small style={{ color: '#9fb6cb' }}>{JSON.stringify(setting.value).slice(0, 40)}</small>
                   )}
                 </td>
-                <td style={{ padding: '10px' }}>{setting.type}</td>
-                <td style={{ padding: '10px' }}>{setting.isEditable ? '✓' : '✗'}</td>
-                <td style={{ padding: '10px' }}>
+                <td><small>{setting.type}</small></td>
+                <td>
+                  <span className={`badge ${setting.isEditable ? 'badge-success' : 'badge-neutral'}`}>
+                    {setting.isEditable ? '✓ Yes' : '✗ Locked'}
+                  </span>
+                </td>
+                <td>
                   {editingKey === setting.key ? (
-                    <>
-                      <button onClick={() => handleUpdateSetting(setting.key)} style={{ padding: '4px 8px', background: '#51cf66', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', marginRight: '5px' }}>Save</button>
-                      <button onClick={() => setEditingKey(null)} style={{ padding: '4px 8px', background: '#999', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}>Cancel</button>
-                    </>
+                    <div style={{ display: 'flex', gap: '0.4rem' }}>
+                      <button onClick={() => handleUpdateSetting(setting.key)}>Save</button>
+                      <button className="secondary" onClick={() => setEditingKey(null)}>Cancel</button>
+                    </div>
                   ) : setting.isEditable ? (
-                    <button onClick={() => { setEditingKey(setting.key); setEditValue(String(setting.value)); }} style={{ padding: '4px 8px', background: '#228be6', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}>Edit</button>
+                    <button className="secondary" onClick={() => { setEditingKey(setting.key); setEditValue(String(setting.value)); }}>
+                      Edit
+                    </button>
                   ) : (
-                    <span style={{ color: '#999' }}>Locked</span>
+                    <small style={{ color: '#9fb6cb' }}>Locked</small>
                   )}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        {!loading && !settings.length && <div className="state-empty">No settings found for the selected category.</div>}
+        {loading && <div className="state-loading">Loading settings…</div>}
       </div>
-      {loading && <p>Loading...</p>}
     </div>
   );
 }

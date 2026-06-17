@@ -42,6 +42,18 @@ interface NotificationsSectionProps {
   onSuccess: (msg: string) => void;
 }
 
+function logStatusBadge(status: string) {
+  const map: Record<string, string> = {
+    sent: 'badge-success',
+    delivered: 'badge-success',
+    failed: 'badge-danger',
+    bounced: 'badge-danger',
+    pending: 'badge-warning',
+    unsubscribed: 'badge-neutral',
+  };
+  return <span className={`badge ${map[status] ?? 'badge-neutral'}`}>{status}</span>;
+}
+
 export function NotificationsSection({ onError, onSuccess }: NotificationsSectionProps) {
   const [activeTab, setActiveTab] = useState<'templates' | 'mappings' | 'logs' | 'marketing'>('templates');
   const [templates, setTemplates] = useState<NotificationTemplate[]>([]);
@@ -56,15 +68,15 @@ export function NotificationsSection({ onError, onSuccess }: NotificationsSectio
     try {
       const response = await notificationsApi.getTemplates();
       const data = response?.data || [];
-      setTemplates(data.map((template: any) => ({
-        id: template.id || template._id,
-        name: template.name,
-        displayName: template.displayName,
-        category: template.category,
-        trigger: template.trigger,
-        subject: template.emailTemplate?.subject || template.subject || '',
-        body: template.emailTemplate?.body || template.body || '',
-        isActive: template.isActive,
+      setTemplates(data.map((t: any) => ({
+        id: t.id || t._id,
+        name: t.name,
+        displayName: t.displayName,
+        category: t.category,
+        trigger: t.trigger,
+        subject: t.emailTemplate?.subject || t.subject || '',
+        body: t.emailTemplate?.body || t.body || '',
+        isActive: t.isActive,
       })));
     } catch (err) {
       onError(`Failed to load templates: ${err}`);
@@ -78,18 +90,14 @@ export function NotificationsSection({ onError, onSuccess }: NotificationsSectio
     try {
       const response = await notificationsApi.getEventMappings();
       const data = response?.data || [];
-      setEventMappings(data.map((mapping: any) => ({
-        id: mapping.id || mapping._id,
-        event: mapping.event,
-        description: mapping.description,
-        templates: Array.isArray(mapping.templates)
-          ? mapping.templates.map((template: any) => ({
-              id: template.id || template._id,
-              name: template.name,
-              displayName: template.displayName,
-            }))
-          : mapping.templates,
-        active: mapping.active,
+      setEventMappings(data.map((m: any) => ({
+        id: m.id || m._id,
+        event: m.event,
+        description: m.description,
+        templates: Array.isArray(m.templates)
+          ? m.templates.map((t: any) => ({ id: t.id || t._id, name: t.name, displayName: t.displayName }))
+          : m.templates,
+        active: m.active,
       })));
     } catch (err) {
       onError(`Failed to load event mappings: ${err}`);
@@ -101,27 +109,21 @@ export function NotificationsSection({ onError, onSuccess }: NotificationsSectio
   const loadLogs = async () => {
     setLoading(true);
     try {
-      const [logsResponse, statsResponse] = await Promise.all([
+      const [logsRes, statsRes] = await Promise.all([
         notificationsApi.getNotificationLogs(1, 50),
         notificationsApi.getNotificationStats(),
       ]);
-
-      const logsData = logsResponse?.data || [];
-      setLogs(logsData.map((log: any) => ({
-        id: log.id || log._id,
-        template: log.template,
-        channel: log.channel || log.type || 'unknown',
-        status: log.status,
-        recipient: log.recipient,
-        createdAt: log.createdAt || log.createdAt || log.createdAt,
+      const logsData = logsRes?.data || [];
+      setLogs(logsData.map((l: any) => ({
+        id: l.id || l._id,
+        template: l.template,
+        channel: l.channel || l.type || 'unknown',
+        status: l.status,
+        recipient: l.recipient,
+        createdAt: l.createdAt,
       })));
-
-      const statsData = statsResponse?.data || {};
-      setStats({
-        sent: statsData.sent ?? 0,
-        failed: statsData.failed ?? 0,
-        pending: statsData.pending ?? 0,
-      });
+      const statsData = statsRes?.data || {};
+      setStats({ sent: statsData.sent ?? 0, failed: statsData.failed ?? 0, pending: statsData.pending ?? 0 });
     } catch (err) {
       onError(`Failed to load logs: ${err}`);
     } finally {
@@ -134,12 +136,12 @@ export function NotificationsSection({ onError, onSuccess }: NotificationsSectio
     try {
       const response = await notificationsApi.getMarketingRules();
       const data = response?.data || [];
-      setMarketingRules(data.map((rule: any) => ({
-        id: rule.id || rule._id,
-        name: rule.name,
-        trigger: rule.trigger,
-        active: rule.active,
-        audience: rule.audience,
+      setMarketingRules(data.map((r: any) => ({
+        id: r.id || r._id,
+        name: r.name,
+        trigger: r.trigger,
+        active: r.active,
+        audience: r.audience,
       })));
     } catch (err) {
       onError(`Failed to load marketing rules: ${err}`);
@@ -155,227 +157,187 @@ export function NotificationsSection({ onError, onSuccess }: NotificationsSectio
     else if (activeTab === 'marketing') loadMarketingRules();
   }, [activeTab]);
 
+  const tabs = [
+    { key: 'templates' as const, label: 'Templates' },
+    { key: 'mappings' as const, label: 'Event Mappings' },
+    { key: 'logs' as const, label: 'Logs' },
+    { key: 'marketing' as const, label: 'Marketing Rules' },
+  ];
+
   return (
-    <div style={{ padding: '20px' }}>
-      <h2>Notification Management</h2>
-      
-      <div style={{ marginBottom: '20px', borderBottom: '2px solid #ddd', display: 'flex', gap: '10px' }}>
-        <button
-          onClick={() => setActiveTab('templates')}
-          style={{
-            padding: '10px 20px',
-            background: activeTab === 'templates' ? '#007bff' : '#f0f0f0',
-            color: activeTab === 'templates' ? 'white' : 'black',
-            border: 'none',
-            cursor: 'pointer',
-            borderRadius: '4px',
-          }}
-        >
-          Templates
-        </button>
-        <button
-          onClick={() => setActiveTab('mappings')}
-          style={{
-            padding: '10px 20px',
-            background: activeTab === 'mappings' ? '#007bff' : '#f0f0f0',
-            color: activeTab === 'mappings' ? 'white' : 'black',
-            border: 'none',
-            cursor: 'pointer',
-            borderRadius: '4px',
-          }}
-        >
-          Event Mappings
-        </button>
-        <button
-          onClick={() => setActiveTab('logs')}
-          style={{
-            padding: '10px 20px',
-            background: activeTab === 'logs' ? '#007bff' : '#f0f0f0',
-            color: activeTab === 'logs' ? 'white' : 'black',
-            border: 'none',
-            cursor: 'pointer',
-            borderRadius: '4px',
-          }}
-        >
-          Logs
-        </button>
-        <button
-          onClick={() => setActiveTab('marketing')}
-          style={{
-            padding: '10px 20px',
-            background: activeTab === 'marketing' ? '#007bff' : '#f0f0f0',
-            color: activeTab === 'marketing' ? 'white' : 'black',
-            border: 'none',
-            cursor: 'pointer',
-            borderRadius: '4px',
-          }}
-        >
-          Marketing Rules
-        </button>
+    <div style={{ padding: '1.5rem' }}>
+      <h2 style={{ margin: '0 0 1.25rem' }}>Notification Management</h2>
+
+      <div className="section-tabs">
+        {tabs.map(t => (
+          <button key={t.key} className={activeTab === t.key ? 'active' : ''} onClick={() => setActiveTab(t.key)}>
+            {t.label}
+          </button>
+        ))}
       </div>
 
       {activeTab === 'templates' && (
         <div>
-          <button style={{ marginBottom: '15px', padding: '10px 15px', background: '#28a745', color: 'white', border: 'none', cursor: 'pointer', borderRadius: '4px' }}>
-            + New Template
-          </button>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: '#f5f5f5' }}>
-                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Name</th>
-                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Type</th>
-                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Subject</th>
-                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Status</th>
-                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {templates.map((template) => (
-                <tr key={template.id} style={{ borderBottom: '1px solid #eee' }}>
-                  <td style={{ padding: '10px' }}>{template.name}</td>
-                  <td style={{ padding: '10px' }}>
-                    <span style={{ background: '#e3f2fd', padding: '4px 8px', borderRadius: '3px' }}>{template.type}</span>
-                  </td>
-                  <td style={{ padding: '10px' }}>{template.subject}</td>
-                  <td style={{ padding: '10px' }}>
-                    <span style={{ background: template.isActive ? '#d4edda' : '#f8d7da', padding: '4px 8px', borderRadius: '3px' }}>
-                      {template.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td style={{ padding: '10px' }}>
-                    <button style={{ marginRight: '5px', padding: '5px 10px', cursor: 'pointer' }}>Edit</button>
-                    <button style={{ padding: '5px 10px', cursor: 'pointer' }}>Delete</button>
-                  </td>
+          <div style={{ marginBottom: '1rem' }}>
+            <button onClick={() => onSuccess('Template creation form coming soon.')}>+ New Template</button>
+          </div>
+          <div className="table-card">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Category</th>
+                  <th>Subject</th>
+                  <th>Status</th>
+                  <th>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {templates.map(t => (
+                  <tr key={t.id}>
+                    <td style={{ fontWeight: 700 }}>{t.displayName || t.name}</td>
+                    <td><span className="badge badge-info">{t.category || t.trigger || '—'}</span></td>
+                    <td><small>{t.subject || '—'}</small></td>
+                    <td>
+                      <span className={`badge ${t.isActive ? 'badge-success' : 'badge-neutral'}`}>
+                        {t.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td>
+                      <button className="secondary" onClick={() => onSuccess('Edit template form coming soon.')}>Edit</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {!loading && !templates.length && <div className="state-empty">No notification templates configured.</div>}
+            {loading && <div className="state-loading">Loading templates…</div>}
+          </div>
         </div>
       )}
 
       {activeTab === 'mappings' && (
         <div>
-          <button style={{ marginBottom: '15px', padding: '10px 15px', background: '#28a745', color: 'white', border: 'none', cursor: 'pointer', borderRadius: '4px' }}>
-            + New Event Mapping
-          </button>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: '#f5f5f5' }}>
-                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Event</th>
-                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Templates</th>
-                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Status</th>
-                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {eventMappings.map((mapping) => (
-                <tr key={mapping.id} style={{ borderBottom: '1px solid #eee' }}>
-                  <td style={{ padding: '10px' }}>{mapping.event}</td>
-                  <td style={{ padding: '10px' }}>{mapping.templates.join(', ')}</td>
-                  <td style={{ padding: '10px' }}>
-                    <span style={{ background: mapping.active ? '#d4edda' : '#f8d7da', padding: '4px 8px', borderRadius: '3px' }}>
-                      {mapping.active ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td style={{ padding: '10px' }}>
-                    <button style={{ marginRight: '5px', padding: '5px 10px', cursor: 'pointer' }}>Edit</button>
-                  </td>
+          <div style={{ marginBottom: '1rem' }}>
+            <button onClick={() => onSuccess('Event mapping form coming soon.')}>+ New Event Mapping</button>
+          </div>
+          <div className="table-card">
+            <table>
+              <thead>
+                <tr>
+                  <th>Event</th>
+                  <th>Description</th>
+                  <th>Templates</th>
+                  <th>Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {eventMappings.map(m => (
+                  <tr key={m.id}>
+                    <td style={{ fontWeight: 700, color: '#63d2ff' }}>{m.event}</td>
+                    <td><small>{m.description || '—'}</small></td>
+                    <td>
+                      <small>
+                        {Array.isArray(m.templates)
+                          ? m.templates.map((t: any) => (typeof t === 'string' ? t : t.displayName || t.name)).join(', ')
+                          : String(m.templates)}
+                      </small>
+                    </td>
+                    <td>
+                      <span className={`badge ${m.active ? 'badge-success' : 'badge-neutral'}`}>
+                        {m.active ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {!loading && !eventMappings.length && <div className="state-empty">No event mappings configured.</div>}
+            {loading && <div className="state-loading">Loading mappings…</div>}
+          </div>
         </div>
       )}
 
       {activeTab === 'logs' && (
         <div>
-          <div style={{ background: '#f5f5f5', padding: '15px', borderRadius: '5px', marginBottom: '20px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-            <div>
-              <strong>Sent:</strong>
-              <p style={{ fontSize: '24px', color: '#28a745' }}>{stats.sent}</p>
-            </div>
-            <div>
-              <strong>Failed:</strong>
-              <p style={{ fontSize: '24px', color: '#dc3545' }}>{stats.failed}</p>
-            </div>
-            <div>
-              <strong>Pending:</strong>
-              <p style={{ fontSize: '24px', color: '#ffc107' }}>{stats.pending}</p>
-            </div>
+          <div className="stats-grid small" style={{ marginBottom: '1.25rem', gridTemplateColumns: 'repeat(3, minmax(0,1fr))' }}>
+            <article className="stat"><strong style={{ color: '#43d17a' }}>{stats.sent}</strong><span>Sent</span></article>
+            <article className="stat"><strong style={{ color: '#ff8b8b' }}>{stats.failed}</strong><span>Failed</span></article>
+            <article className="stat"><strong style={{ color: '#fcc419' }}>{stats.pending}</strong><span>Pending</span></article>
           </div>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: '#f5f5f5' }}>
-                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>ID</th>
-                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Type</th>
-                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Status</th>
-                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Timestamp</th>
-              </tr>
-            </thead>
-            <tbody>
-              {logs.map((log) => (
-                <tr key={log.id} style={{ borderBottom: '1px solid #eee' }}>
-                  <td style={{ padding: '10px' }}>{log.id}</td>
-                  <td style={{ padding: '10px' }}>{log.type}</td>
-                  <td style={{ padding: '10px' }}>
-                    <span style={{
-                      background: log.status === 'sent' ? '#d4edda' : log.status === 'failed' ? '#f8d7da' : '#fff3cd',
-                      padding: '4px 8px',
-                      borderRadius: '3px',
-                    }}>
-                      {log.status}
-                    </span>
-                  </td>
-                  <td style={{ padding: '10px' }}>{new Date(log.createdAt).toLocaleString()}</td>
+          <div className="table-card">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Channel</th>
+                  <th>Recipient</th>
+                  <th>Status</th>
+                  <th>Timestamp</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {logs.map(log => (
+                  <tr key={log.id}>
+                    <td><small style={{ fontFamily: 'monospace', color: '#9fb6cb' }}>{log.id?.slice(-10)}</small></td>
+                    <td><span className="badge badge-neutral">{log.channel}</span></td>
+                    <td><small>{log.recipient?.email || log.recipient?.phone || '—'}</small></td>
+                    <td>{logStatusBadge(log.status)}</td>
+                    <td><small>{new Date(log.createdAt).toLocaleString()}</small></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {!loading && !logs.length && <div className="state-empty">No notification logs found.</div>}
+            {loading && <div className="state-loading">Loading logs…</div>}
+          </div>
         </div>
       )}
 
       {activeTab === 'marketing' && (
         <div>
-          <button
-            style={{ marginBottom: '15px', padding: '10px 15px', background: '#28a745', color: 'white', border: 'none', cursor: 'pointer', borderRadius: '4px' }}
-            onClick={() => onSuccess('Marketing rule creation is available in the next phase.')}
-          >
-            + New Marketing Rule
-          </button>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: '#f5f5f5' }}>
-                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Name</th>
-                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Trigger</th>
-                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Audience</th>
-                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Status</th>
-                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {marketingRules.map((rule) => (
-                <tr key={rule.id} style={{ borderBottom: '1px solid #eee' }}>
-                  <td style={{ padding: '10px' }}>{rule.name}</td>
-                  <td style={{ padding: '10px' }}>{rule.trigger}</td>
-                  <td style={{ padding: '10px' }}>
-                    {(rule.audience?.segments || []).join(', ') || (rule.audience?.countries || []).join(', ') || (rule.audience?.tags || []).join(', ') || 'All users'}
-                  </td>
-                  <td style={{ padding: '10px' }}>
-                    <span style={{ background: rule.active ? '#d4edda' : '#f8d7da', padding: '4px 8px', borderRadius: '3px' }}>
-                      {rule.active ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td style={{ padding: '10px' }}>
-                    <button style={{ marginRight: '5px', padding: '5px 10px', cursor: 'pointer' }}>Edit</button>
-                    <button style={{ padding: '5px 10px', cursor: 'pointer' }}>Delete</button>
-                  </td>
+          <div style={{ marginBottom: '1rem' }}>
+            <button onClick={() => onSuccess('Marketing rule creation is available in the next phase.')}>+ New Marketing Rule</button>
+          </div>
+          <div className="table-card">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Trigger</th>
+                  <th>Audience</th>
+                  <th>Status</th>
+                  <th>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          {marketingRules.length === 0 && (
-            <div style={{ padding: '15px', color: '#555' }}>No marketing rules are configured yet.</div>
-          )}
+              </thead>
+              <tbody>
+                {marketingRules.map(rule => (
+                  <tr key={rule.id}>
+                    <td style={{ fontWeight: 700 }}>{rule.name}</td>
+                    <td><span className="badge badge-info">{rule.trigger}</span></td>
+                    <td>
+                      <small>
+                        {(rule.audience?.segments || []).join(', ')
+                          || (rule.audience?.countries || []).join(', ')
+                          || (rule.audience?.tags || []).join(', ')
+                          || 'All users'}
+                      </small>
+                    </td>
+                    <td>
+                      <span className={`badge ${rule.active ? 'badge-success' : 'badge-neutral'}`}>
+                        {rule.active ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td>
+                      <button className="secondary" onClick={() => onSuccess('Edit form coming soon.')}>Edit</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {!loading && !marketingRules.length && <div className="state-empty">No marketing rules configured yet.</div>}
+            {loading && <div className="state-loading">Loading marketing rules…</div>}
+          </div>
         </div>
       )}
     </div>

@@ -8,19 +8,27 @@ interface InventoryProps {
 
 type UpdateType = 'in' | 'out' | 'adjustment' | 'damage' | 'return';
 
-type UpdateForm = {
-  type: UpdateType;
-  quantity: number;
-  reason: string;
-};
+function productName(item: InventoryItem): string {
+  const p = item.product as any;
+  if (!p) return '—';
+  if (typeof p === 'object') return p.title || p.name || String(p._id || p);
+  return String(p);
+}
+
+function stockBadge(item: InventoryItem) {
+  if (item.currentStock === 0) return <span className="badge badge-danger">Out of stock</span>;
+  if (item.lowStockAlert) return <span className="badge badge-warning">Low stock</span>;
+  return <span className="badge badge-success">In stock</span>;
+}
 
 export function InventorySection({ onError, onSuccess }: InventoryProps) {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [stats, setStats] = useState<any>(null);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [loading, setLoading] = useState(false);
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
-  const [updateForm, setUpdateForm] = useState<UpdateForm>({
+  const [updateForm, setUpdateForm] = useState<{ type: UpdateType; quantity: number; reason: string }>({
     type: 'in',
     quantity: 0,
     reason: '',
@@ -29,8 +37,16 @@ export function InventorySection({ onError, onSuccess }: InventoryProps) {
   const loadInventory = async () => {
     setLoading(true);
     try {
-      const result = await inventoryApi.getInventory(1, 50, showLowStockOnly);
-      setInventory(result.data?.inventory || []);
+      const [inv, statsRes] = await Promise.allSettled([
+        inventoryApi.getInventory(1, 100, showLowStockOnly),
+        inventoryApi.getInventoryStats(),
+      ]);
+      if (inv.status === 'fulfilled') {
+        setInventory(inv.value.data?.inventory || inv.value.data?.items || []);
+      }
+      if (statsRes.status === 'fulfilled') {
+        setStats(statsRes.value.data || null);
+      }
     } catch (err) {
       onError(`Failed to load inventory: ${err}`);
     } finally {
@@ -38,15 +54,15 @@ export function InventorySection({ onError, onSuccess }: InventoryProps) {
     }
   };
 
-  const loadItemDetail = async (itemId: string) => {
+  const loadItemDetail = async (productId: string) => {
     setLoading(true);
     try {
-      const [detail, stockMovements] = await Promise.all([
-        inventoryApi.getProductInventory(itemId),
-        inventoryApi.getStockMovements(itemId),
+      const [detail, movRes] = await Promise.all([
+        inventoryApi.getProductInventory(productId),
+        inventoryApi.getStockMovements(productId),
       ]);
       setSelectedItem(detail.data?.inventory || null);
-      setMovements(stockMovements.data?.movements || []);
+      setMovements(movRes.data?.movements || movRes.data?.stockMovements || []);
     } catch (err) {
       onError(`Failed to load item detail: ${err}`);
     } finally {
@@ -56,195 +72,147 @@ export function InventorySection({ onError, onSuccess }: InventoryProps) {
 
   const handleUpdateStock = async (productId: string) => {
     if (updateForm.quantity <= 0 || !updateForm.reason) {
-      onError('Please fill all fields');
+      onError('Please enter a quantity greater than 0 and a reason.');
       return;
     }
-
     try {
       await inventoryApi.updateStock(productId, updateForm);
       onSuccess('Stock updated successfully');
       setUpdateForm({ type: 'in', quantity: 0, reason: '' });
       loadItemDetail(productId);
+      loadInventory();
     } catch (err) {
       onError(`Failed to update stock: ${err}`);
     }
   };
 
-  useEffect(() => {
-    loadInventory();
-  }, [showLowStockOnly]);
+  useEffect(() => { loadInventory(); }, [showLowStockOnly]);
 
   if (selectedItem) {
+    const name = productName(selectedItem);
     return (
-      <div style={{ padding: '20px' }}>
-        <button onClick={() => setSelectedItem(null)} style={{ marginBottom: '20px' }}>
-          ← Back
-        </button>
-        <h2>Inventory: {selectedItem.product}</h2>
+      <div style={{ padding: '1.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
+          <button className="secondary" onClick={() => setSelectedItem(null)}>← Back</button>
+          <h2 style={{ margin: 0 }}>Inventory · {name}</h2>
+        </div>
 
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '20px',
-            marginBottom: '30px',
-          }}
-        >
-          <div style={{ background: '#f5f5f5', padding: '15px', borderRadius: '5px' }}>
-            <h3>Stock Levels</h3>
-            <p>
-              <strong>Current Stock:</strong> {selectedItem.currentStock}
-            </p>
-            <p>
-              <strong>Reserved:</strong> {selectedItem.reservedStock}
-            </p>
-            <p>
-              <strong>Available:</strong> {selectedItem.availableStock}
-            </p>
-            <p>
-              <strong>Reorder Level:</strong> {selectedItem.reorderLevel}
-            </p>
-            <p>
-              <strong>Reorder Qty:</strong> {selectedItem.reorderQuantity}
-            </p>
-            {selectedItem.lowStockAlert && (
-              <p style={{ color: '#ff6b6b' }}>⚠ Low Stock Alert Active</p>
-            )}
+        <div className="detail-grid">
+          <div className="section-box kv-list">
+            <h3 style={{ margin: '0 0 1rem', color: '#63d2ff', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Stock Levels</h3>
+            <p><strong>Current Stock</strong> {selectedItem.currentStock}</p>
+            <p><strong>Reserved</strong> {selectedItem.reservedStock}</p>
+            <p><strong>Available</strong> <span style={{ color: '#43d17a', fontWeight: 800 }}>{selectedItem.availableStock}</span></p>
+            <p><strong>Reorder Level</strong> {selectedItem.reorderLevel}</p>
+            <p><strong>Reorder Qty</strong> {selectedItem.reorderQuantity}</p>
+            <p><strong>Status</strong> {stockBadge(selectedItem)}</p>
+            {selectedItem.warehouseLocation && <p><strong>Location</strong> {selectedItem.warehouseLocation}</p>}
           </div>
 
-          <div style={{ background: '#f5f5f5', padding: '15px', borderRadius: '5px' }}>
-            <h3>Update Stock</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div className="section-box">
+            <h3 style={{ margin: '0 0 1rem', color: '#63d2ff', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Update Stock</h3>
+            <div style={{ display: 'grid', gap: '0.75rem' }}>
               <select
                 value={updateForm.type}
-                onChange={(e) => setUpdateForm({ ...updateForm, type: e.target.value as UpdateType })}
-                style={{ padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+                onChange={e => setUpdateForm({ ...updateForm, type: e.target.value as UpdateType })}
               >
-                <option value="in">Stock In</option>
-                <option value="out">Stock Out</option>
+                <option value="in">Stock In (restock)</option>
+                <option value="out">Stock Out (manual deduction)</option>
                 <option value="adjustment">Adjustment</option>
-                <option value="damage">Damage</option>
-                <option value="return">Return</option>
+                <option value="damage">Damage / Loss</option>
+                <option value="return">Return from customer</option>
               </select>
-
               <input
                 type="number"
+                min={1}
                 placeholder="Quantity"
-                value={updateForm.quantity}
-                onChange={(e) => setUpdateForm({ ...updateForm, quantity: Number(e.target.value) })}
-                style={{ padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+                value={updateForm.quantity || ''}
+                onChange={e => setUpdateForm({ ...updateForm, quantity: Number(e.target.value) })}
               />
-
               <input
                 type="text"
-                placeholder="Reason"
+                placeholder="Reason (required)"
                 value={updateForm.reason}
-                onChange={(e) => setUpdateForm({ ...updateForm, reason: e.target.value })}
-                style={{ padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+                onChange={e => setUpdateForm({ ...updateForm, reason: e.target.value })}
               />
-
-              <button
-                onClick={() => handleUpdateStock(selectedItem._id)}
-                style={{
-                  padding: '8px',
-                  background: '#51cf66',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                }}
-              >
+              <button onClick={() => handleUpdateStock(selectedItem._id)}>
                 Update Stock
               </button>
             </div>
           </div>
         </div>
 
-        <h3>Stock Movements</h3>
-        <div
-          style={{
-            background: '#f5f5f5',
-            padding: '15px',
-            borderRadius: '5px',
-            maxHeight: '300px',
-            overflowY: 'auto',
-          }}
-        >
-          {movements.length > 0 ? (
-            movements.map((mov) => (
-              <div
-                key={mov._id}
-                style={{
-                  marginBottom: '10px',
-                  padding: '10px',
-                  background: 'white',
-                  borderRadius: '3px',
-                }}
-              >
-                <strong>{mov.type.toUpperCase()}</strong> - Qty: {mov.quantity}
-                <br />
-                <small>{mov.reason}</small>
-                <br />
-                <small>{new Date(mov.createdAt).toLocaleString()}</small>
-              </div>
-            ))
-          ) : (
-            <p>No movements found</p>
-          )}
-        </div>
+        <section className="panel">
+          <h2>Stock Movements</h2>
+          {movements.length ? movements.map((mov, i) => (
+            <div key={mov._id || i} className={`timeline-entry ${mov.type === 'in' || mov.type === 'return' ? 'tl-success' : mov.type === 'damage' ? 'tl-danger' : 'tl-info'}`}>
+              <strong>{mov.type.toUpperCase()} &nbsp;·&nbsp; Qty: {mov.quantity}</strong>
+              <small>{mov.reason}</small>
+              <small>{new Date(mov.createdAt).toLocaleString()}</small>
+            </div>
+          )) : <div className="state-empty">No stock movements recorded yet.</div>}
+          {loading && <div className="state-loading">Loading...</div>}
+        </section>
       </div>
     );
   }
 
-  return (
-    <div style={{ padding: '20px' }}>
-      <h2>Inventory Management</h2>
+  const lowCount = inventory.filter(i => i.lowStockAlert).length;
+  const outCount = inventory.filter(i => i.currentStock === 0).length;
+  const totalValue = inventory.reduce((s, i) => s + i.currentStock, 0);
 
-      <div style={{ marginBottom: '20px' }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+  return (
+    <div style={{ padding: '1.5rem' }}>
+      <h2 style={{ margin: '0 0 1.25rem' }}>Inventory Management</h2>
+
+      <div className="stats-grid small" style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', marginBottom: '1.25rem' }}>
+        <article className="stat"><strong>{inventory.length}</strong><span>SKUs Tracked</span></article>
+        <article className="stat"><strong style={{ color: '#43d17a' }}>{totalValue}</strong><span>Total Units</span></article>
+        <article className="stat"><strong style={{ color: '#fcc419' }}>{lowCount}</strong><span>Low Stock Alerts</span></article>
+        <article className="stat"><strong style={{ color: '#ff8b8b' }}>{outCount}</strong><span>Out of Stock</span></article>
+      </div>
+
+      <div className="section-filters">
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', color: '#dbe8f5', fontWeight: 700, cursor: 'pointer' }}>
           <input
             type="checkbox"
             checked={showLowStockOnly}
-            onChange={(e) => setShowLowStockOnly(e.target.checked)}
+            onChange={e => setShowLowStockOnly(e.target.checked)}
+            style={{ width: 'auto' }}
           />
           Show Low Stock Only
         </label>
+        <button className="secondary" onClick={loadInventory} style={{ marginLeft: 'auto' }}>
+          Refresh
+        </button>
       </div>
 
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <div className="table-card">
+        <table>
           <thead>
-            <tr style={{ background: '#f5f5f5' }}>
-              <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Product</th>
-              <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Current</th>
-              <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Available</th>
-              <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Reorder Level</th>
-              <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Alert</th>
-              <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Action</th>
+            <tr>
+              <th>Product</th>
+              <th>Current</th>
+              <th>Reserved</th>
+              <th>Available</th>
+              <th>Reorder Level</th>
+              <th>Last Restocked</th>
+              <th>Status</th>
+              <th>Action</th>
             </tr>
           </thead>
           <tbody>
-            {inventory.map((item) => (
-              <tr key={item._id} style={{ borderBottom: '1px solid #eee' }}>
-                <td style={{ padding: '10px' }}>{item.product}</td>
-                <td style={{ padding: '10px' }}>{item.currentStock}</td>
-                <td style={{ padding: '10px' }}>{item.availableStock}</td>
-                <td style={{ padding: '10px' }}>{item.reorderLevel}</td>
-                <td style={{ padding: '10px' }}>
-                  {item.lowStockAlert && <span style={{ color: '#ff6b6b' }}>⚠</span>}
-                </td>
-                <td style={{ padding: '10px' }}>
-                  <button
-                    onClick={() => loadItemDetail(item._id)}
-                    style={{
-                      padding: '4px 8px',
-                      background: '#228be6',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '3px',
-                      cursor: 'pointer',
-                    }}
-                  >
+            {inventory.map(item => (
+              <tr key={item._id}>
+                <td style={{ fontWeight: 700 }}>{productName(item)}</td>
+                <td>{item.currentStock}</td>
+                <td>{item.reservedStock ?? 0}</td>
+                <td style={{ color: item.availableStock === 0 ? '#ff8b8b' : '#43d17a', fontWeight: 700 }}>{item.availableStock}</td>
+                <td>{item.reorderLevel}</td>
+                <td><small>{item.lastRestockDate ? new Date(item.lastRestockDate).toLocaleDateString() : '—'}</small></td>
+                <td>{stockBadge(item)}</td>
+                <td>
+                  <button className="secondary" onClick={() => loadItemDetail(item._id)}>
                     Manage
                   </button>
                 </td>
@@ -252,10 +220,9 @@ export function InventorySection({ onError, onSuccess }: InventoryProps) {
             ))}
           </tbody>
         </table>
+        {!loading && !inventory.length && <div className="state-empty">No inventory records found. Products will appear here once created.</div>}
+        {loading && <div className="state-loading">Loading inventory...</div>}
       </div>
-
-      {loading && <p>Loading...</p>}
     </div>
   );
 }
-

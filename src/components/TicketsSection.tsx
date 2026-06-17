@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ticketsApi, type Ticket } from '../services/tickets';
 import { socketEvents } from '../services/events';
 import { subscribeAdminSocketEvent } from '../services/socket';
@@ -6,6 +6,29 @@ import { subscribeAdminSocketEvent } from '../services/socket';
 interface TicketsProps {
   onError: (msg: string) => void;
   onSuccess: (msg: string) => void;
+}
+
+function priorityBadge(priority: string) {
+  const map: Record<string, string> = {
+    critical: 'badge-danger',
+    high: 'badge-warning',
+    medium: 'badge-info',
+    low: 'badge-neutral',
+  };
+  return <span className={`badge ${map[priority] ?? 'badge-neutral'}`}>{priority}</span>;
+}
+
+function statusBadge(status: string) {
+  const map: Record<string, string> = {
+    open: 'badge-warning',
+    in_progress: 'badge-info',
+    escalated: 'badge-danger',
+    resolved: 'badge-success',
+    closed: 'badge-neutral',
+    waiting_customer: 'badge-neutral',
+    waiting_admin: 'badge-neutral',
+  };
+  return <span className={`badge ${map[status] ?? 'badge-neutral'}`}>{status.replace(/_/g, ' ')}</span>;
 }
 
 export function TicketsSection({ onError, onSuccess }: TicketsProps) {
@@ -44,24 +67,21 @@ export function TicketsSection({ onError, onSuccess }: TicketsProps) {
   };
 
   const handleAddMessage = async (ticketId: string) => {
-    if (!messageForm.message) {
-      onError('Message cannot be empty');
-      return;
-    }
+    if (!messageForm.message) { onError('Message cannot be empty'); return; }
     try {
       await ticketsApi.addMessage(ticketId, { message: messageForm.message });
-      onSuccess('Message added successfully');
+      onSuccess('Message sent');
       setMessageForm({ message: '' });
       loadTicketDetail(ticketId);
     } catch (err) {
-      onError(`Failed to add message: ${err}`);
+      onError(`Failed to send message: ${err}`);
     }
   };
 
   const handleUpdateStatus = async (ticketId: string, newStatus: string) => {
     try {
       await ticketsApi.updateTicketStatus(ticketId, newStatus);
-      onSuccess('Ticket status updated');
+      onSuccess('Status updated');
       loadTicketDetail(ticketId);
       loadTickets();
     } catch (err) {
@@ -69,18 +89,12 @@ export function TicketsSection({ onError, onSuccess }: TicketsProps) {
     }
   };
 
-  useEffect(() => {
-    loadTickets();
-  }, [statusFilter, priorityFilter]);
+  useEffect(() => { loadTickets(); }, [statusFilter, priorityFilter]);
 
-  // Real-time socket subscriptions
   useEffect(() => {
-    const unsubCreated = subscribeAdminSocketEvent(socketEvents.DOMAIN.TICKET_CREATED, () => {
-      loadTickets();
-    });
+    const unsubCreated = subscribeAdminSocketEvent(socketEvents.DOMAIN.TICKET_CREATED, () => loadTickets());
     const unsubUpdated = subscribeAdminSocketEvent(socketEvents.DOMAIN.TICKET_UPDATED, (payload: any) => {
       loadTickets();
-      // If detail view is open, refresh it too
       if (selectedTicket && payload?.ticketId && selectedTicket._id === String(payload.ticketId)) {
         loadTicketDetail(String(payload.ticketId));
       }
@@ -90,31 +104,32 @@ export function TicketsSection({ onError, onSuccess }: TicketsProps) {
         loadTicketDetail(String(payload.ticketId));
       }
     });
-    return () => {
-      unsubCreated();
-      unsubUpdated();
-      unsubMessage();
-    };
+    return () => { unsubCreated(); unsubUpdated(); unsubMessage(); };
   }, [selectedTicket]);
 
   if (selectedTicket) {
     return (
-      <div style={{ padding: '20px' }}>
-        <button onClick={() => setSelectedTicket(null)} style={{ marginBottom: '20px' }}>← Back</button>
-        <h2>{selectedTicket.ticketNumber}: {selectedTicket.subject}</h2>
-        <div style={{ background: '#f5f5f5', padding: '15px', borderRadius: '5px', marginBottom: '20px' }}>
-          <p><strong>Status:</strong> {selectedTicket.status}</p>
-          <p><strong>Priority:</strong> {selectedTicket.priority}</p>
-          <p><strong>Category:</strong> {selectedTicket.category}</p>
-          <p><strong>Assigned To:</strong> {selectedTicket.assignedTo || 'Unassigned'}</p>
-          {selectedTicket.satisfaction && (
-            <p><strong>Rating:</strong> {selectedTicket.satisfaction.rating}/5 - {selectedTicket.satisfaction.feedback}</p>
-          )}
-          <div style={{ marginTop: '10px' }}>
+      <div style={{ padding: '1.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+          <button className="secondary" onClick={() => setSelectedTicket(null)}>← Back</button>
+          <h2 style={{ margin: 0 }}>{selectedTicket.ticketNumber}: {selectedTicket.subject}</h2>
+          {statusBadge(selectedTicket.status)}
+          {priorityBadge(selectedTicket.priority)}
+        </div>
+
+        <div className="detail-grid" style={{ marginBottom: '1.5rem' }}>
+          <div className="section-box kv-list">
+            <h3 style={{ margin: '0 0 1rem', color: '#63d2ff', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Ticket Details</h3>
+            <p><strong>Category</strong> {selectedTicket.category}</p>
+            <p><strong>Priority</strong> {priorityBadge(selectedTicket.priority)}</p>
+            <p><strong>Assigned To</strong> {selectedTicket.assignedTo || 'Unassigned'}</p>
+            {selectedTicket.satisfaction && (
+              <p><strong>Rating</strong> {selectedTicket.satisfaction.rating}/5 — {selectedTicket.satisfaction.feedback}</p>
+            )}
+            <p style={{ marginTop: '1rem' }}><strong>Update Status</strong></p>
             <select
               value={selectedTicket.status}
-              onChange={(e) => handleUpdateStatus(selectedTicket._id, e.target.value)}
-              style={{ padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+              onChange={e => handleUpdateStatus(selectedTicket._id, e.target.value)}
             >
               <option value="open">Open</option>
               <option value="in_progress">In Progress</option>
@@ -125,49 +140,43 @@ export function TicketsSection({ onError, onSuccess }: TicketsProps) {
               <option value="closed">Closed</option>
             </select>
           </div>
+
+          <div className="section-box">
+            <h3 style={{ margin: '0 0 1rem', color: '#63d2ff', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Send Reply</h3>
+            <div style={{ display: 'grid', gap: '0.75rem' }}>
+              <textarea
+                placeholder="Type your admin reply…"
+                value={messageForm.message}
+                onChange={e => setMessageForm({ message: e.target.value })}
+              />
+              <button onClick={() => handleAddMessage(selectedTicket._id)}>Send Message</button>
+            </div>
+          </div>
         </div>
-        <h3>Messages</h3>
-        <div style={{ background: '#f5f5f5', padding: '15px', borderRadius: '5px', maxHeight: '300px', overflowY: 'auto', marginBottom: '20px' }}>
-          {selectedTicket.messages.length > 0 ? (
-            selectedTicket.messages.map((msg, idx) => (
-              <div key={idx} style={{ marginBottom: '10px', padding: '10px', background: 'white', borderRadius: '3px' }}>
-                <strong>{msg.senderType}:</strong> {msg.message}
-                <br />
+
+        <section className="panel">
+          <h2>Conversation</h2>
+          <div style={{ maxHeight: 480, overflowY: 'auto' }}>
+            {selectedTicket.messages.length ? selectedTicket.messages.map((msg, idx) => (
+              <div key={idx} className={`timeline-entry ${msg.senderType === 'admin' ? 'tl-info' : 'tl-success'}`}>
+                <strong style={{ textTransform: 'capitalize' }}>{msg.senderType}</strong>
+                <span style={{ color: '#dbe8f5', marginTop: '0.3rem', display: 'block' }}>{msg.message}</span>
                 <small>{new Date(msg.createdAt).toLocaleString()}</small>
               </div>
-            ))
-          ) : (
-            <p>No messages</p>
-          )}
-        </div>
-        <div style={{ background: '#f5f5f5', padding: '15px', borderRadius: '5px' }}>
-          <h3>Add Message</h3>
-          <textarea
-            placeholder="Type your message..."
-            value={messageForm.message}
-            onChange={(e) => setMessageForm({ message: e.target.value })}
-            style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px', minHeight: '80px', fontFamily: 'monospace' }}
-          />
-          <button
-            onClick={() => handleAddMessage(selectedTicket._id)}
-            style={{ marginTop: '10px', padding: '8px 16px', background: '#51cf66', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-          >
-            Send Message
-          </button>
-        </div>
+            )) : <div className="state-empty">No messages yet.</div>}
+          </div>
+          {loading && <div className="state-loading">Loading…</div>}
+        </section>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h2>Support Tickets</h2>
-      <div style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          style={{ padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
-        >
+    <div style={{ padding: '1.5rem' }}>
+      <h2 style={{ margin: '0 0 1.25rem' }}>Support Tickets</h2>
+
+      <div className="section-filters">
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ width: 160 }}>
           <option value="">All Statuses</option>
           <option value="open">Open</option>
           <option value="in_progress">In Progress</option>
@@ -175,63 +184,46 @@ export function TicketsSection({ onError, onSuccess }: TicketsProps) {
           <option value="resolved">Resolved</option>
           <option value="closed">Closed</option>
         </select>
-        <select
-          value={priorityFilter}
-          onChange={(e) => setPriorityFilter(e.target.value)}
-          style={{ padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
-        >
+        <select value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)} style={{ width: 150 }}>
           <option value="">All Priorities</option>
           <option value="low">Low</option>
           <option value="medium">Medium</option>
           <option value="high">High</option>
           <option value="critical">Critical</option>
         </select>
+        <button className="secondary" onClick={loadTickets} style={{ marginLeft: 'auto' }}>Refresh</button>
       </div>
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+
+      <div className="table-card">
+        <table>
           <thead>
-            <tr style={{ background: '#f5f5f5' }}>
-              <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Ticket #</th>
-              <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Subject</th>
-              <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Priority</th>
-              <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Status</th>
-              <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Created</th>
-              <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Action</th>
+            <tr>
+              <th>Ticket #</th>
+              <th>Subject</th>
+              <th>Priority</th>
+              <th>Status</th>
+              <th>Created</th>
+              <th>Action</th>
             </tr>
           </thead>
           <tbody>
-            {tickets.map((ticket) => (
-              <tr key={ticket._id} style={{ borderBottom: '1px solid #eee' }}>
-                <td style={{ padding: '10px' }}>{ticket.ticketNumber}</td>
-                <td style={{ padding: '10px' }}>{ticket.subject}</td>
-                <td style={{ padding: '10px' }}>
-                  <span style={{
-                    padding: '4px 8px',
-                    borderRadius: '3px',
-                    background: ticket.priority === 'critical' ? '#ffe0e0' : ticket.priority === 'high' ? '#fff3e0' : '#e7f5ff',
-                    color: ticket.priority === 'critical' ? '#d00' : ticket.priority === 'high' ? '#e65100' : '#0c5aa0'
-                  }}>
-                    {ticket.priority}
-                  </span>
-                </td>
-                <td style={{ padding: '10px' }}>{ticket.status}</td>
-                <td style={{ padding: '10px' }}>{new Date(ticket.createdAt).toLocaleDateString()}</td>
-                <td style={{ padding: '10px' }}>
-                  <button
-                    onClick={() => loadTicketDetail(ticket._id)}
-                    style={{ padding: '4px 8px', background: '#228be6', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}
-                  >
-                    View
-                  </button>
+            {tickets.map(ticket => (
+              <tr key={ticket._id}>
+                <td style={{ fontWeight: 700, color: '#63d2ff' }}>{ticket.ticketNumber}</td>
+                <td>{ticket.subject}</td>
+                <td>{priorityBadge(ticket.priority)}</td>
+                <td>{statusBadge(ticket.status)}</td>
+                <td><small>{new Date(ticket.createdAt).toLocaleDateString()}</small></td>
+                <td>
+                  <button className="secondary" onClick={() => loadTicketDetail(ticket._id)}>View</button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        {!loading && !tickets.length && <div className="state-empty">No tickets found for the selected filters.</div>}
+        {loading && <div className="state-loading">Loading tickets…</div>}
       </div>
-      {loading && <p>Loading...</p>}
     </div>
   );
 }
-
-

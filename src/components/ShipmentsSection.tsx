@@ -6,8 +6,21 @@ interface ShipmentsProps {
   onSuccess: (msg: string) => void;
 }
 
+function shipmentBadge(status: string) {
+  const map: Record<string, string> = {
+    delivered: 'badge-success',
+    in_transit: 'badge-info',
+    out_for_delivery: 'badge-warning',
+    failed: 'badge-danger',
+    pending: 'badge-neutral',
+    packed: 'badge-neutral',
+  };
+  return <span className={`badge ${map[status] ?? 'badge-neutral'}`}>{status.replace(/_/g, ' ')}</span>;
+}
+
 export function ShipmentsSection({ onError, onSuccess }: ShipmentsProps) {
   const [shipments, setShipments] = useState<Shipment[]>([]);
+  const [stats, setStats] = useState<any>(null);
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
   const [trackingHistory, setTrackingHistory] = useState<TrackingEvent[]>([]);
   const [loading, setLoading] = useState(false);
@@ -17,8 +30,12 @@ export function ShipmentsSection({ onError, onSuccess }: ShipmentsProps) {
   const loadShipments = async () => {
     setLoading(true);
     try {
-      const result = await shipmentsApi.getShipments(1, 50, statusFilter || undefined);
-      setShipments(result.data?.shipments || []);
+      const [res, statsRes] = await Promise.allSettled([
+        shipmentsApi.getShipments(1, 50, statusFilter || undefined),
+        shipmentsApi.getShipmentStats(),
+      ]);
+      if (res.status === 'fulfilled') setShipments(res.value.data?.shipments || []);
+      if (statsRes.status === 'fulfilled') setStats(statsRes.value.data || null);
     } catch (err) {
       onError(`Failed to load shipments: ${err}`);
     } finally {
@@ -34,7 +51,7 @@ export function ShipmentsSection({ onError, onSuccess }: ShipmentsProps) {
         shipmentsApi.getTrackingHistory(shipmentId),
       ]);
       setSelectedShipment(detail.data?.shipment || null);
-      setTrackingHistory(history.data?.trackingEvents || []);
+      setTrackingHistory(history.data?.trackingEvents || history.data?.history || []);
     } catch (err) {
       onError(`Failed to load shipment detail: ${err}`);
     } finally {
@@ -44,7 +61,7 @@ export function ShipmentsSection({ onError, onSuccess }: ShipmentsProps) {
 
   const handleUpdateTracking = async (shipmentId: string) => {
     if (!trackingForm.status || !trackingForm.location) {
-      onError('Please fill status and location');
+      onError('Status and location are required');
       return;
     }
     try {
@@ -57,89 +74,93 @@ export function ShipmentsSection({ onError, onSuccess }: ShipmentsProps) {
     }
   };
 
-  useEffect(() => {
-    loadShipments();
-  }, [statusFilter]);
+  useEffect(() => { loadShipments(); }, [statusFilter]);
 
   if (selectedShipment) {
     return (
-      <div style={{ padding: '20px' }}>
-        <button onClick={() => setSelectedShipment(null)} style={{ marginBottom: '20px' }}>← Back</button>
-        <h2>Shipment: {selectedShipment.trackingNumber}</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '30px' }}>
-          <div style={{ background: '#f5f5f5', padding: '15px', borderRadius: '5px' }}>
-            <h3>Shipment Details</h3>
-            <p><strong>Carrier:</strong> {selectedShipment.carrier}</p>
-            <p><strong>Status:</strong> {selectedShipment.status}</p>
-            <p><strong>Weight:</strong> {selectedShipment.weight} kg</p>
-            <p><strong>Cost:</strong> ${selectedShipment.cost}</p>
-            <p><strong>Est. Delivery:</strong> {selectedShipment.estimatedDelivery ? new Date(selectedShipment.estimatedDelivery).toLocaleDateString() : 'N/A'}</p>
-            {selectedShipment.actualDelivery && <p><strong>Actual Delivery:</strong> {new Date(selectedShipment.actualDelivery).toLocaleDateString()}</p>}
-            <h4>Address</h4>
-            <p>{selectedShipment.shippingAddress.street}<br />{selectedShipment.shippingAddress.city}, {selectedShipment.shippingAddress.state} {selectedShipment.shippingAddress.zipCode}</p>
+      <div style={{ padding: '1.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
+          <button className="secondary" onClick={() => setSelectedShipment(null)}>← Back</button>
+          <h2 style={{ margin: 0 }}>Shipment · {selectedShipment.trackingNumber}</h2>
+          {shipmentBadge(selectedShipment.status)}
+        </div>
+
+        <div className="detail-grid">
+          <div className="section-box kv-list">
+            <h3 style={{ margin: '0 0 1rem', color: '#63d2ff', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Shipment Details</h3>
+            <p><strong>Carrier</strong> {selectedShipment.carrier || '—'}</p>
+            <p><strong>Status</strong> {shipmentBadge(selectedShipment.status)}</p>
+            <p><strong>Weight</strong> {selectedShipment.weight ?? '—'} kg</p>
+            <p><strong>Cost</strong> ₹{selectedShipment.cost ?? '—'}</p>
+            <p><strong>Est. Delivery</strong> {selectedShipment.estimatedDelivery ? new Date(selectedShipment.estimatedDelivery).toLocaleDateString() : '—'}</p>
+            {selectedShipment.actualDelivery && <p><strong>Delivered</strong> {new Date(selectedShipment.actualDelivery).toLocaleDateString()}</p>}
+            {selectedShipment.shippingAddress && (
+              <p><strong>Address</strong>{' '}
+                {selectedShipment.shippingAddress.street}, {selectedShipment.shippingAddress.city},{' '}
+                {selectedShipment.shippingAddress.state} {selectedShipment.shippingAddress.zipCode}
+              </p>
+            )}
           </div>
-          <div style={{ background: '#f5f5f5', padding: '15px', borderRadius: '5px' }}>
-            <h3>Update Tracking</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+
+          <div className="section-box">
+            <h3 style={{ margin: '0 0 1rem', color: '#63d2ff', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Update Tracking</h3>
+            <div style={{ display: 'grid', gap: '0.75rem' }}>
               <input
                 type="text"
-                placeholder="Status (e.g., in_transit)"
+                placeholder="Status (e.g., in_transit, delivered)"
                 value={trackingForm.status}
-                onChange={(e) => setTrackingForm({ ...trackingForm, status: e.target.value })}
-                style={{ padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+                onChange={e => setTrackingForm({ ...trackingForm, status: e.target.value })}
               />
               <input
                 type="text"
-                placeholder="Location"
+                placeholder="Location (e.g., Mumbai Hub)"
                 value={trackingForm.location}
-                onChange={(e) => setTrackingForm({ ...trackingForm, location: e.target.value })}
-                style={{ padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+                onChange={e => setTrackingForm({ ...trackingForm, location: e.target.value })}
               />
               <input
                 type="text"
-                placeholder="Description"
+                placeholder="Description (optional)"
                 value={trackingForm.description}
-                onChange={(e) => setTrackingForm({ ...trackingForm, description: e.target.value })}
-                style={{ padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+                onChange={e => setTrackingForm({ ...trackingForm, description: e.target.value })}
               />
-              <button
-                onClick={() => handleUpdateTracking(selectedShipment._id)}
-                style={{ padding: '8px', background: '#51cf66', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-              >
+              <button onClick={() => handleUpdateTracking(selectedShipment._id)}>
                 Update Tracking
               </button>
             </div>
           </div>
         </div>
-        <h3>Tracking History</h3>
-        <div style={{ background: '#f5f5f5', padding: '15px', borderRadius: '5px', maxHeight: '300px', overflowY: 'auto' }}>
-          {trackingHistory.length > 0 ? (
-            trackingHistory.map((event, idx) => (
-              <div key={idx} style={{ marginBottom: '10px', padding: '10px', background: 'white', borderRadius: '3px' }}>
-                <strong>{event.status}</strong> @ {event.location}
-                <br />
-                <small>{event.description}</small>
-                <br />
-                <small>{new Date(event.timestamp).toLocaleString()}</small>
-              </div>
-            ))
-          ) : (
-            <p>No tracking events yet</p>
-          )}
-        </div>
+
+        <section className="panel">
+          <h2>Tracking History</h2>
+          {trackingHistory.length ? trackingHistory.map((event, idx) => (
+            <div key={idx} className={`timeline-entry ${event.status === 'delivered' ? 'tl-success' : event.status === 'failed' ? 'tl-danger' : 'tl-info'}`}>
+              <strong>{event.status.replace(/_/g, ' ')} — {event.location}</strong>
+              {event.description && <small>{event.description}</small>}
+              <small>{new Date(event.timestamp).toLocaleString()}</small>
+            </div>
+          )) : <div className="state-empty">No tracking events recorded yet.</div>}
+          {loading && <div className="state-loading">Loading...</div>}
+        </section>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h2>Shipments & Tracking</h2>
-      <div style={{ marginBottom: '20px' }}>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          style={{ padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
-        >
+    <div style={{ padding: '1.5rem' }}>
+      <h2 style={{ margin: '0 0 1.25rem' }}>Shipments & Tracking</h2>
+
+      {stats && (
+        <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(5, minmax(0,1fr))', marginBottom: '1.25rem' }}>
+          <article className="stat"><strong>{stats.total ?? shipments.length}</strong><span>Total</span></article>
+          <article className="stat"><strong style={{ color: '#fcc419' }}>{stats.pending ?? 0}</strong><span>Pending</span></article>
+          <article className="stat"><strong style={{ color: '#63d2ff' }}>{stats.inTransit ?? 0}</strong><span>In Transit</span></article>
+          <article className="stat"><strong style={{ color: '#43d17a' }}>{stats.delivered ?? 0}</strong><span>Delivered</span></article>
+          <article className="stat"><strong style={{ color: '#ff8b8b' }}>{stats.failed ?? 0}</strong><span>Failed</span></article>
+        </div>
+      )}
+
+      <div className="section-filters">
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ width: 200 }}>
           <option value="">All Statuses</option>
           <option value="pending">Pending</option>
           <option value="packed">Packed</option>
@@ -148,48 +169,41 @@ export function ShipmentsSection({ onError, onSuccess }: ShipmentsProps) {
           <option value="delivered">Delivered</option>
           <option value="failed">Failed</option>
         </select>
+        <button className="secondary" onClick={loadShipments}>Refresh</button>
       </div>
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+
+      <div className="table-card">
+        <table>
           <thead>
-            <tr style={{ background: '#f5f5f5' }}>
-              <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Tracking #</th>
-              <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Carrier</th>
-              <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Status</th>
-              <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Est. Delivery</th>
-              <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Action</th>
+            <tr>
+              <th>Tracking #</th>
+              <th>Carrier</th>
+              <th>Status</th>
+              <th>Est. Delivery</th>
+              <th>Weight</th>
+              <th>Cost</th>
+              <th>Action</th>
             </tr>
           </thead>
           <tbody>
-            {shipments.map((shipment) => (
-              <tr key={shipment._id} style={{ borderBottom: '1px solid #eee' }}>
-                <td style={{ padding: '10px' }}>{shipment.trackingNumber}</td>
-                <td style={{ padding: '10px' }}>{shipment.carrier}</td>
-                <td style={{ padding: '10px' }}>
-                  <span style={{
-                    padding: '4px 8px',
-                    borderRadius: '3px',
-                    background: shipment.status === 'delivered' ? '#e7f5ff' : '#fff3e0',
-                    color: shipment.status === 'delivered' ? '#0c5aa0' : '#e65100'
-                  }}>
-                    {shipment.status}
-                  </span>
-                </td>
-                <td style={{ padding: '10px' }}>{shipment.estimatedDelivery ? new Date(shipment.estimatedDelivery).toLocaleDateString() : 'N/A'}</td>
-                <td style={{ padding: '10px' }}>
-                  <button
-                    onClick={() => loadShipmentDetail(shipment._id)}
-                    style={{ padding: '4px 8px', background: '#228be6', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}
-                  >
-                    Track
-                  </button>
+            {shipments.map(s => (
+              <tr key={s._id}>
+                <td style={{ fontWeight: 700, color: '#63d2ff' }}>{s.trackingNumber}</td>
+                <td>{s.carrier || '—'}</td>
+                <td>{shipmentBadge(s.status)}</td>
+                <td><small>{s.estimatedDelivery ? new Date(s.estimatedDelivery).toLocaleDateString() : '—'}</small></td>
+                <td><small>{s.weight ?? '—'} kg</small></td>
+                <td><small>₹{s.cost ?? '—'}</small></td>
+                <td>
+                  <button className="secondary" onClick={() => loadShipmentDetail(s._id)}>Track</button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        {!loading && !shipments.length && <div className="state-empty">No shipments found for the selected filter.</div>}
+        {loading && <div className="state-loading">Loading shipments...</div>}
       </div>
-      {loading && <p>Loading...</p>}
     </div>
   );
 }

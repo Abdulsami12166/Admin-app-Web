@@ -1,9 +1,21 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { invoicesApi, type Invoice } from '../services/invoices';
 
 interface InvoicesProps {
   onError: (msg: string) => void;
   onSuccess: (msg: string) => void;
+}
+
+function invoiceBadge(status: string) {
+  const map: Record<string, string> = {
+    paid: 'badge-success',
+    partial: 'badge-warning',
+    overdue: 'badge-danger',
+    sent: 'badge-info',
+    viewed: 'badge-info',
+    draft: 'badge-neutral',
+  };
+  return <span className={`badge ${map[status] ?? 'badge-neutral'}`}>{status}</span>;
 }
 
 export function InvoicesSection({ onError, onSuccess }: InvoicesProps) {
@@ -39,10 +51,9 @@ export function InvoicesSection({ onError, onSuccess }: InvoicesProps) {
 
   const handleRecordPayment = async (invoiceId: string) => {
     if (paymentForm.amount <= 0 || !paymentForm.method) {
-      onError('Please fill all fields');
+      onError('Please fill amount and payment method');
       return;
     }
-
     try {
       await invoicesApi.recordPayment(invoiceId, paymentForm);
       onSuccess('Payment recorded successfully');
@@ -54,137 +65,96 @@ export function InvoicesSection({ onError, onSuccess }: InvoicesProps) {
     }
   };
 
-  useEffect(() => {
-    loadInvoices();
-  }, [statusFilter]);
+  useEffect(() => { loadInvoices(); }, [statusFilter]);
 
   if (selectedInvoice) {
     return (
-      <div style={{ padding: '20px' }}>
-        <button onClick={() => setSelectedInvoice(null)} style={{ marginBottom: '20px' }}>
-          ← Back
-        </button>
+      <div style={{ padding: '1.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
+          <button className="secondary" onClick={() => setSelectedInvoice(null)}>← Back</button>
+          <h2 style={{ margin: 0 }}>Invoice · {selectedInvoice.invoiceNumber}</h2>
+          {invoiceBadge(selectedInvoice.status)}
+        </div>
 
-        <h2>Invoice: {selectedInvoice.invoiceNumber}</h2>
-
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '20px',
-            marginBottom: '30px',
-          }}
-        >
-          <div style={{ background: '#f5f5f5', padding: '15px', borderRadius: '5px' }}>
-            <h3>Invoice Summary</h3>
-            <p>
-              <strong>Status:</strong> {selectedInvoice.status}
-            </p>
-            <p>
-              <strong>Subtotal:</strong> ${selectedInvoice.subtotal}
-            </p>
-            <p>
-              <strong>Tax:</strong> ${selectedInvoice.tax}
-            </p>
-            <p>
-              <strong>Discount:</strong> ${selectedInvoice.discount}
-            </p>
-            <p>
-              <strong>Total:</strong> ${selectedInvoice.total}
-            </p>
-            <p>
-              <strong>Amount Paid:</strong> ${selectedInvoice.amountPaid}
-            </p>
-            <p>
-              <strong>Amount Due:</strong> ${selectedInvoice.amountDue}
-            </p>
+        <div className="detail-grid">
+          <div className="section-box kv-list">
+            <h3 style={{ margin: '0 0 1rem', color: '#63d2ff', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Invoice Summary</h3>
+            <p><strong>Status</strong> {invoiceBadge(selectedInvoice.status)}</p>
+            <p><strong>Subtotal</strong> ₹{selectedInvoice.subtotal}</p>
+            <p><strong>Tax</strong> ₹{selectedInvoice.tax}</p>
+            <p><strong>Discount</strong> ₹{selectedInvoice.discount}</p>
+            <p><strong>Total</strong> <span style={{ color: '#63d2ff', fontWeight: 800 }}>₹{selectedInvoice.total}</span></p>
+            <p><strong>Amount Paid</strong> <span style={{ color: '#43d17a', fontWeight: 800 }}>₹{selectedInvoice.amountPaid}</span></p>
+            <p><strong>Amount Due</strong> <span style={{ color: selectedInvoice.amountDue > 0 ? '#fcc419' : '#43d17a', fontWeight: 800 }}>₹{selectedInvoice.amountDue}</span></p>
           </div>
 
-          <div style={{ background: '#f5f5f5', padding: '15px', borderRadius: '5px' }}>
-            <h3>Record Payment</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div className="section-box">
+            <h3 style={{ margin: '0 0 1rem', color: '#63d2ff', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Record Payment</h3>
+            <div style={{ display: 'grid', gap: '0.75rem' }}>
               <input
                 type="number"
-                placeholder="Amount"
-                value={paymentForm.amount}
-                onChange={(e) => setPaymentForm({ ...paymentForm, amount: Number(e.target.value) })}
-                style={{ padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+                placeholder="Amount (₹)"
+                value={paymentForm.amount || ''}
+                onChange={e => setPaymentForm({ ...paymentForm, amount: Number(e.target.value) })}
               />
               <input
                 type="text"
-                placeholder="Payment Method (e.g., card, bank)"
+                placeholder="Payment method (e.g. card, bank, UPI)"
                 value={paymentForm.method}
-                onChange={(e) => setPaymentForm({ ...paymentForm, method: e.target.value })}
-                style={{ padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+                onChange={e => setPaymentForm({ ...paymentForm, method: e.target.value })}
               />
-              <button
-                onClick={() => handleRecordPayment(selectedInvoice._id)}
-                style={{
-                  padding: '8px',
-                  background: '#51cf66',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                }}
-              >
-                Record Payment
-              </button>
+              <button onClick={() => handleRecordPayment(selectedInvoice._id)}>Record Payment</button>
             </div>
           </div>
         </div>
 
-        <h3>Line Items</h3>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: '#f5f5f5' }}>
-                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Product</th>
-                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Qty</th>
-                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Unit Price</th>
-                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Tax</th>
-                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {selectedInvoice.items.map((item, idx) => (
-                <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
-                  <td style={{ padding: '10px' }}>{item.product}</td>
-                  <td style={{ padding: '10px' }}>{item.quantity}</td>
-                  <td style={{ padding: '10px' }}>${item.unitPrice}</td>
-                  <td style={{ padding: '10px' }}>${item.tax}</td>
-                  <td style={{ padding: '10px' }}>${item.total}</td>
+        <section className="panel">
+          <h2>Line Items</h2>
+          <div className="table-card">
+            <table>
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Qty</th>
+                  <th>Unit Price</th>
+                  <th>Tax</th>
+                  <th>Total</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {selectedInvoice.items.map((item, idx) => (
+                  <tr key={idx}>
+                    <td>{item.product}</td>
+                    <td>{item.quantity}</td>
+                    <td>₹{item.unitPrice}</td>
+                    <td>₹{item.tax}</td>
+                    <td style={{ color: '#63d2ff', fontWeight: 700 }}>₹{item.total}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
 
-        <h3>Payment History</h3>
-        <div style={{ background: '#f5f5f5', padding: '15px', borderRadius: '5px' }}>
-          {selectedInvoice.payments.length > 0 ? (
-            selectedInvoice.payments.map((payment, idx) => (
-              <div key={idx} style={{ marginBottom: '5px' }}>
-                ${payment.amount} via {payment.method} on {new Date(payment.date).toLocaleDateString()}
-              </div>
-            ))
-          ) : (
-            <p>No payments recorded</p>
-          )}
-        </div>
+        <section className="panel">
+          <h2>Payment History</h2>
+          {selectedInvoice.payments.length ? selectedInvoice.payments.map((payment, idx) => (
+            <div key={idx} className="timeline-entry tl-success">
+              <strong>₹{payment.amount} via {payment.method}</strong>
+              <small>{new Date(payment.date).toLocaleDateString()}</small>
+            </div>
+          )) : <div className="state-empty">No payments recorded yet.</div>}
+        </section>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h2>Invoices</h2>
-      <div style={{ marginBottom: '20px' }}>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          style={{ padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
-        >
+    <div style={{ padding: '1.5rem' }}>
+      <h2 style={{ margin: '0 0 1.25rem' }}>Invoices</h2>
+
+      <div className="section-filters">
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ width: 180 }}>
           <option value="">All Statuses</option>
           <option value="draft">Draft</option>
           <option value="sent">Sent</option>
@@ -193,56 +163,41 @@ export function InvoicesSection({ onError, onSuccess }: InvoicesProps) {
           <option value="partial">Partial</option>
           <option value="overdue">Overdue</option>
         </select>
+        <button className="secondary" onClick={loadInvoices} style={{ marginLeft: 'auto' }}>Refresh</button>
       </div>
 
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <div className="table-card">
+        <table>
           <thead>
-            <tr style={{ background: '#f5f5f5' }}>
-              <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Invoice #</th>
-              <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Order</th>
-              <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Total</th>
-              <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Paid</th>
-              <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Due</th>
-              <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Status</th>
-              <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Action</th>
+            <tr>
+              <th>Invoice #</th>
+              <th>Order</th>
+              <th>Total</th>
+              <th>Paid</th>
+              <th>Due</th>
+              <th>Status</th>
+              <th>Action</th>
             </tr>
           </thead>
           <tbody>
-            {invoices.map((invoice) => (
-              <tr key={invoice._id} style={{ borderBottom: '1px solid #eee' }}>
-                <td style={{ padding: '10px' }}>{invoice.invoiceNumber}</td>
-                <td style={{ padding: '10px' }}>{invoice.order}</td>
-                <td style={{ padding: '10px' }}>${invoice.total}</td>
-                <td style={{ padding: '10px' }}>${invoice.amountPaid}</td>
-                <td style={{ padding: '10px' }}>${invoice.amountDue}</td>
-                <td style={{ padding: '10px' }}>
-                  <span
-                    style={{
-                      padding: '4px 8px',
-                      borderRadius: '3px',
-                      background: invoice.status === 'paid' ? '#e7f5ff' : '#fff3e0',
-                      color: invoice.status === 'paid' ? '#0c5aa0' : '#e65100',
-                    }}
-                  >
-                    {invoice.status}
-                  </span>
-                </td>
-                <td style={{ padding: '10px' }}>
-                  <button
-                    onClick={() => loadInvoiceDetail(invoice._id)}
-                    style={{ padding: '4px 8px', background: '#228be6', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}
-                  >
-                    View
-                  </button>
+            {invoices.map(invoice => (
+              <tr key={invoice._id}>
+                <td style={{ fontWeight: 700, color: '#63d2ff' }}>{invoice.invoiceNumber}</td>
+                <td><small>{invoice.order}</small></td>
+                <td>₹{invoice.total}</td>
+                <td style={{ color: '#43d17a' }}>₹{invoice.amountPaid}</td>
+                <td style={{ color: invoice.amountDue > 0 ? '#fcc419' : '#43d17a' }}>₹{invoice.amountDue}</td>
+                <td>{invoiceBadge(invoice.status)}</td>
+                <td>
+                  <button className="secondary" onClick={() => loadInvoiceDetail(invoice._id)}>View</button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        {!loading && !invoices.length && <div className="state-empty">No invoices found for the selected filter.</div>}
+        {loading && <div className="state-loading">Loading invoices…</div>}
       </div>
-
-      {loading && <p>Loading...</p>}
     </div>
   );
 }

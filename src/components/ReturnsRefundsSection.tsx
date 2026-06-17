@@ -9,6 +9,17 @@ interface ReturnsRefundsProps {
   onSuccess: (msg: string) => void;
 }
 
+function returnBadge(status: string) {
+  const map: Record<string, string> = {
+    approved: 'badge-success',
+    rejected: 'badge-danger',
+    initiated: 'badge-warning',
+    completed: 'badge-success',
+    cancelled: 'badge-danger',
+  };
+  return <span className={`badge ${map[status] ?? 'badge-neutral'}`}>{status.replace(/_/g, ' ')}</span>;
+}
+
 export function ReturnsRefundsSection({ onError, onSuccess }: ReturnsRefundsProps) {
   const [returns, setReturns] = useState<Return[]>([]);
   const [refunds, setRefunds] = useState<Refund[]>([]);
@@ -47,7 +58,20 @@ export function ReturnsRefundsSection({ onError, onSuccess }: ReturnsRefundsProp
       onSuccess('Return approved');
       loadReturns();
     } catch (err) {
-      onError(`Failed to approve: ${err}`);
+      onError(`Failed to approve return: ${err}`);
+    }
+  };
+
+  const handleRejectReturn = async (returnId: string) => {
+    const reason = window.prompt('Rejection reason (required)');
+    if (!reason) return;
+    try {
+      await returnsApi.rejectReturn(returnId, reason);
+      onSuccess('Return rejected');
+      loadReturns();
+      setSelectedReturn(null);
+    } catch (err) {
+      onError(`Failed to reject return: ${err}`);
     }
   };
 
@@ -57,7 +81,20 @@ export function ReturnsRefundsSection({ onError, onSuccess }: ReturnsRefundsProp
       onSuccess('Refund approved');
       loadRefunds();
     } catch (err) {
-      onError(`Failed to approve: ${err}`);
+      onError(`Failed to approve refund: ${err}`);
+    }
+  };
+
+  const handleRejectRefund = async (refundId: string) => {
+    const reason = window.prompt('Rejection reason (required)');
+    if (!reason) return;
+    try {
+      await refundsApi.rejectRefund(refundId, reason);
+      onSuccess('Refund rejected');
+      loadRefunds();
+      setSelectedRefund(null);
+    } catch (err) {
+      onError(`Failed to reject refund: ${err}`);
     }
   };
 
@@ -66,153 +103,166 @@ export function ReturnsRefundsSection({ onError, onSuccess }: ReturnsRefundsProp
     else loadRefunds();
   }, [tab]);
 
+  // Socket subscriptions
+  useEffect(() => {
+    const unsub = subscribeAdminSocketEvent(socketEvents.DOMAIN?.RETURN_UPDATED || 'return_updated', () => {
+      if (tab === 'returns') loadReturns();
+    });
+    return () => unsub?.();
+  }, [tab]);
+
   if (selectedReturn) {
     return (
-      <div style={{ padding: '20px' }}>
-        <button onClick={() => setSelectedReturn(null)} style={{ marginBottom: '20px' }}>← Back</button>
-        <h2>Return Details</h2>
-        <div style={{ background: '#f5f5f5', padding: '15px', borderRadius: '5px' }}>
-          <p><strong>Status:</strong> {selectedReturn.status}</p>
-          <p><strong>Items:</strong> {selectedReturn.returnItems.length}</p>
+      <div style={{ padding: '1.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
+          <button className="secondary" onClick={() => setSelectedReturn(null)}>← Back</button>
+          <h2 style={{ margin: 0 }}>Return Details</h2>
+          {returnBadge(selectedReturn.status)}
+        </div>
+
+        <div className="section-box kv-list" style={{ marginBottom: '1.25rem' }}>
+          <p><strong>Status</strong> {returnBadge(selectedReturn.status)}</p>
+          <p><strong>Items</strong> {selectedReturn.returnItems.length}</p>
+        </div>
+
+        <section className="panel">
+          <h2>Return Items</h2>
           {selectedReturn.returnItems.map((item, i) => (
-            <div key={i} style={{ marginTop: '10px' }}>
-              <strong>{item.product}</strong> x{item.quantity} - {item.reason} ({item.condition})
+            <div key={i} className="timeline-entry tl-info">
+              <strong>{item.product}</strong>
+              <small>Qty: {item.quantity} · Reason: {item.reason} · Condition: {item.condition}</small>
             </div>
           ))}
-          <div style={{ marginTop: '20px' }}>
-            {selectedReturn.status === 'initiated' && (
-              <>
-                <button onClick={() => handleApproveReturn(selectedReturn._id)} style={{ padding: '8px 16px', background: '#51cf66', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', marginRight: '10px' }}>
-                  Approve
-                </button>
-                <button style={{ padding: '8px 16px', background: '#ff6b6b', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-                  Reject
-                </button>
-              </>
-            )}
+        </section>
+
+        {selectedReturn.status === 'initiated' && (
+          <div className="action-bar">
+            <button onClick={() => handleApproveReturn(selectedReturn._id)}>Approve Return</button>
+            <button className="secondary danger-text" onClick={() => handleRejectReturn(selectedReturn._id)}>Reject Return</button>
           </div>
-        </div>
+        )}
       </div>
     );
   }
 
   if (selectedRefund) {
     return (
-      <div style={{ padding: '20px' }}>
-        <button onClick={() => setSelectedRefund(null)} style={{ marginBottom: '20px' }}>← Back</button>
-        <h2>Refund Details</h2>
-        <div style={{ background: '#f5f5f5', padding: '15px', borderRadius: '5px' }}>
-          <p><strong>Status:</strong> {selectedRefund.status}</p>
-          <p><strong>Amount:</strong> ${selectedRefund.refundAmount}</p>
-          <p><strong>Type:</strong> {selectedRefund.refundType}</p>
-          <p><strong>Reason:</strong> {selectedRefund.reason}</p>
-          <h4>Breakdown</h4>
-          <p>Product: ${selectedRefund.refundBreakdown.productAmount}</p>
-          <p>Shipping: ${selectedRefund.refundBreakdown.shippingRefund}</p>
-          <p>Tax: ${selectedRefund.refundBreakdown.taxRefund}</p>
-          <p>Additional Credit: ${selectedRefund.refundBreakdown.additionalCredit}</p>
-          <div style={{ marginTop: '20px' }}>
-            {selectedRefund.status === 'initiated' && (
-              <>
-                <button onClick={() => handleApproveRefund(selectedRefund._id)} style={{ padding: '8px 16px', background: '#51cf66', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', marginRight: '10px' }}>
-                  Approve
-                </button>
-                <button style={{ padding: '8px 16px', background: '#ff6b6b', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-                  Reject
-                </button>
-              </>
-            )}
+      <div style={{ padding: '1.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
+          <button className="secondary" onClick={() => setSelectedRefund(null)}>← Back</button>
+          <h2 style={{ margin: 0 }}>Refund Details</h2>
+          {returnBadge(selectedRefund.status)}
+        </div>
+
+        <div className="detail-grid">
+          <div className="section-box kv-list">
+            <h3 style={{ margin: '0 0 1rem', color: '#63d2ff', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Refund Info</h3>
+            <p><strong>Status</strong> {returnBadge(selectedRefund.status)}</p>
+            <p><strong>Amount</strong> <span style={{ color: '#63d2ff', fontWeight: 800 }}>₹{selectedRefund.refundAmount}</span></p>
+            <p><strong>Type</strong> {selectedRefund.refundType}</p>
+            <p><strong>Reason</strong> {selectedRefund.reason}</p>
+          </div>
+
+          <div className="section-box kv-list">
+            <h3 style={{ margin: '0 0 1rem', color: '#63d2ff', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Breakdown</h3>
+            <p><strong>Product Amount</strong> ₹{selectedRefund.refundBreakdown.productAmount}</p>
+            <p><strong>Shipping</strong> ₹{selectedRefund.refundBreakdown.shippingRefund}</p>
+            <p><strong>Tax</strong> ₹{selectedRefund.refundBreakdown.taxRefund}</p>
+            <p><strong>Additional Credit</strong> ₹{selectedRefund.refundBreakdown.additionalCredit}</p>
           </div>
         </div>
+
+        {selectedRefund.status === 'initiated' && (
+          <div className="action-bar">
+            <button onClick={() => handleApproveRefund(selectedRefund._id)}>Approve Refund</button>
+            <button className="secondary danger-text" onClick={() => handleRejectRefund(selectedRefund._id)}>Reject Refund</button>
+          </div>
+        )}
       </div>
     );
   }
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h2>Returns & Refunds</h2>
-      <div style={{ marginBottom: '20px', borderBottom: '1px solid #ddd' }}>
-        <button
-          onClick={() => setTab('returns')}
-          style={{
-            padding: '10px 20px',
-            background: tab === 'returns' ? '#228be6' : 'transparent',
-            color: tab === 'returns' ? 'white' : '#000',
-            border: 'none',
-            cursor: 'pointer',
-            marginRight: '10px'
-          }}
-        >
-          Returns
+    <div style={{ padding: '1.5rem' }}>
+      <h2 style={{ margin: '0 0 1.25rem' }}>Returns &amp; Refunds</h2>
+
+      <div className="section-tabs">
+        <button className={tab === 'returns' ? 'active' : ''} onClick={() => setTab('returns')}>
+          Returns ({returns.length})
         </button>
-        <button
-          onClick={() => setTab('refunds')}
-          style={{
-            padding: '10px 20px',
-            background: tab === 'refunds' ? '#228be6' : 'transparent',
-            color: tab === 'refunds' ? 'white' : '#000',
-            border: 'none',
-            cursor: 'pointer'
-          }}
-        >
-          Refunds
+        <button className={tab === 'refunds' ? 'active' : ''} onClick={() => setTab('refunds')}>
+          Refunds ({refunds.length})
+        </button>
+        <button className="secondary" onClick={() => tab === 'returns' ? loadReturns() : loadRefunds()} style={{ marginLeft: 'auto' }}>
+          Refresh
         </button>
       </div>
 
-      {tab === 'returns' ? (
-        <div>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      {tab === 'returns' && (
+        <div className="table-card">
+          <table>
             <thead>
-              <tr style={{ background: '#f5f5f5' }}>
-                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Return ID</th>
-                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Items</th>
-                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Status</th>
-                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Action</th>
+              <tr>
+                <th>Return ID</th>
+                <th>Items</th>
+                <th>Status</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
-              {returns.map((r) => (
-                <tr key={r._id} style={{ borderBottom: '1px solid #eee' }}>
-                  <td style={{ padding: '10px' }}>{r._id.slice(-8)}</td>
-                  <td style={{ padding: '10px' }}>{r.returnItems.length}</td>
-                  <td style={{ padding: '10px' }}>{r.status}</td>
-                  <td style={{ padding: '10px' }}>
-                    <button onClick={() => setSelectedReturn(r)} style={{ padding: '4px 8px', background: '#228be6', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}>View</button>
+              {returns.map(r => (
+                <tr key={r._id}>
+                  <td style={{ fontWeight: 700, color: '#63d2ff' }}>#{r._id.slice(-8)}</td>
+                  <td>{r.returnItems.length} item(s)</td>
+                  <td>{returnBadge(r.status)}</td>
+                  <td>
+                    <button className="secondary" onClick={() => setSelectedReturn(r)}>View</button>
+                    {r.status === 'initiated' && (
+                      <button onClick={() => handleApproveReturn(r._id)}>Approve</button>
+                    )}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
-      ) : (
-        <div>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: '#f5f5f5' }}>
-                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Refund ID</th>
-                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Amount</th>
-                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Type</th>
-                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Status</th>
-                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {refunds.map((ref) => (
-                <tr key={ref._id} style={{ borderBottom: '1px solid #eee' }}>
-                  <td style={{ padding: '10px' }}>{ref._id.slice(-8)}</td>
-                  <td style={{ padding: '10px' }}>${ref.refundAmount}</td>
-                  <td style={{ padding: '10px' }}>{ref.refundType}</td>
-                  <td style={{ padding: '10px' }}>{ref.status}</td>
-                  <td style={{ padding: '10px' }}>
-                    <button onClick={() => setSelectedRefund(ref)} style={{ padding: '4px 8px', background: '#228be6', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}>View</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {!loading && !returns.length && <div className="state-empty">No return requests found.</div>}
+          {loading && <div className="state-loading">Loading returns…</div>}
         </div>
       )}
-      {loading && <p>Loading...</p>}
+
+      {tab === 'refunds' && (
+        <div className="table-card">
+          <table>
+            <thead>
+              <tr>
+                <th>Refund ID</th>
+                <th>Amount</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {refunds.map(ref => (
+                <tr key={ref._id}>
+                  <td style={{ fontWeight: 700, color: '#63d2ff' }}>#{ref._id.slice(-8)}</td>
+                  <td style={{ color: '#fcc419', fontWeight: 700 }}>₹{ref.refundAmount}</td>
+                  <td>{ref.refundType}</td>
+                  <td>{returnBadge(ref.status)}</td>
+                  <td>
+                    <button className="secondary" onClick={() => setSelectedRefund(ref)}>View</button>
+                    {ref.status === 'initiated' && (
+                      <button onClick={() => handleApproveRefund(ref._id)}>Approve</button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {!loading && !refunds.length && <div className="state-empty">No refund requests found.</div>}
+          {loading && <div className="state-loading">Loading refunds…</div>}
+        </div>
+      )}
     </div>
   );
 }
