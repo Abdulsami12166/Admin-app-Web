@@ -1,5 +1,7 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { ticketsApi, type Ticket } from '../services/tickets';
+import { socketEvents } from '../services/events';
+import { subscribeAdminSocketEvent } from '../services/socket';
 
 interface TicketsProps {
   onError: (msg: string) => void;

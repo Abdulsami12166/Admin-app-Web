@@ -84,9 +84,23 @@ export function connectAdminSocket(onEvent: (title: string, detail: string) => v
       `New message on ticket ${payload?.ticketId || 'unknown'}: ${payload?.message || 'message added'}`,
     ),
   );
+  socket.on(socketEvents.DOMAIN.RETURN_CREATED, payload =>
+    onEvent('Return created', `Return ${payload?.returnId || 'unknown'} created.`),
+  );
+  socket.on(socketEvents.DOMAIN.RETURN_UPDATED, payload =>
+    onEvent('Return updated', `Return ${payload?.returnId || 'unknown'} status: ${payload?.status || 'updated'}`),
+  );
 
   return () => {
     socket?.disconnect();
     socket = null;
+  };
+}
+
+export function subscribeAdminSocketEvent(eventName: string, listener: (payload: unknown) => void) {
+  if (!socket) return () => {};
+  socket.on(eventName, listener);
+  return () => {
+    socket?.off(eventName, listener);
   };
 }

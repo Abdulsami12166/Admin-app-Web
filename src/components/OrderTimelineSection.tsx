@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
+
 
 interface TimelineEvent {
   id: string;
@@ -24,43 +25,17 @@ export function OrderTimelineSection({ onError, onSuccess }: OrderTimelineSectio
     if (!orderId) return;
     setLoading(true);
     try {
-      // Mock data
-      setTimelineEvents([
-        {
-          id: 'evt_1',
-          timestamp: new Date(Date.now() - 86400000).toISOString(),
-          event: 'order_created',
-          description: 'Order created',
-          actor: 'customer',
-        },
-        {
-          id: 'evt_2',
-          timestamp: new Date(Date.now() - 43200000).toISOString(),
-          event: 'payment_processed',
-          description: 'Payment processed successfully',
-          actor: 'system',
-        },
-        {
-          id: 'evt_3',
-          timestamp: new Date(Date.now() - 21600000).toISOString(),
-          event: 'order_confirmed',
-          description: 'Order confirmed',
-          actor: 'admin',
-        },
-        {
-          id: 'evt_4',
-          timestamp: new Date(Date.now() - 3600000).toISOString(),
-          event: 'order_shipped',
-          description: 'Order shipped with tracking ID',
-          actor: 'system',
-        },
-      ]);
+      const resp = await (await import('../services/orderTimeline')).orderTimelineApi.getOrderTimeline(orderId);
+      const data = resp?.data;
+      const events = data?.events || data?.timeline?.events || [];
+      setTimelineEvents(events);
     } catch (err) {
-      onError(`Failed to load timeline: ${err}`);
+      onError(`Failed to load timeline: ${String(err)}`);
     } finally {
       setLoading(false);
     }
   };
+
 
   const handleAddEvent = async () => {
     if (!formData.event || !formData.description) {
@@ -69,21 +44,21 @@ export function OrderTimelineSection({ onError, onSuccess }: OrderTimelineSectio
     }
 
     try {
-      const newEvent: TimelineEvent = {
-        id: `evt_${Date.now()}`,
-        timestamp: new Date().toISOString(),
+      const { orderTimelineApi } = await import('../services/orderTimeline');
+      await orderTimelineApi.addTimelineEvent(selectedOrderId, {
         event: formData.event,
         description: formData.description,
         actor: formData.actor || 'admin',
-      };
-      setTimelineEvents([...timelineEvents, newEvent]);
+      });
       setFormData({ event: '', description: '', actor: '' });
       setShowForm(false);
       onSuccess('Event added successfully');
+      await loadTimeline(selectedOrderId);
     } catch (err) {
-      onError(`Failed to add event: ${err}`);
+      onError(`Failed to add event: ${String(err)}`);
     }
   };
+
 
   return (
     <div style={{ padding: '20px' }}>
