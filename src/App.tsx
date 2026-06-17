@@ -42,11 +42,12 @@ import { NotificationsSection } from './components/NotificationsSection';
 import { SessionManagementSection } from './components/SessionManagementSection';
 import { OrderTimelineSection } from './components/OrderTimelineSection';
 import { BulkOperationsSection } from './components/BulkOperationsSection';
+import { ReportsSection } from './components/ReportsSection';
 import AdminNavigation from './pages/AdminNavigation';
 import AdminManagementSection from './components/AdminManagementSection';
 import UserHistorySection from './components/UserHistorySection';
 
-type TabKey = 'dashboard' | 'admin-nav' | 'admin-management' | 'user-history' | 'access' | 'users' | 'products' | 'orders' | 'transactions' | 'analytics' | 'activity' | 'customers' | 'inventory' | 'shipments' | 'tickets' | 'invoices' | 'returns-refunds' | 'audit-logs' | 'settings' | 'feature-toggles' | 'notifications' | 'sessions' | 'order-timeline' | 'bulk-operations';
+type TabKey = 'dashboard' | 'admin-nav' | 'admin-management' | 'user-history' | 'access' | 'users' | 'products' | 'orders' | 'transactions' | 'analytics' | 'activity' | 'customers' | 'inventory' | 'shipments' | 'tickets' | 'invoices' | 'returns-refunds' | 'audit-logs' | 'settings' | 'feature-toggles' | 'notifications' | 'sessions' | 'order-timeline' | 'bulk-operations' | 'reports';
 type FeedItem = {id: string; title: string; detail: string; createdAt: number};
 
 const tabs: Array<{key: TabKey; label: string; permission: Parameters<typeof can>[1]}> = [
@@ -74,6 +75,7 @@ const tabs: Array<{key: TabKey; label: string; permission: Parameters<typeof can
   {key: 'notifications', label: 'Notifications', permission: 'notifications:view'},
   {key: 'sessions', label: 'Sessions', permission: 'admins:view'},
   {key: 'bulk-operations', label: 'Bulk Operations', permission: 'products:manage'},
+  {key: 'reports', label: 'Reports', permission: 'analytics:view'},
 ];
 
 const productCategories = [
@@ -458,6 +460,12 @@ export function App() {
         )}
         {activeTab === 'bulk-operations' && can(role, 'products:manage') && (
           <BulkOperationsSection 
+            onError={(msg) => pushFeed('Error', msg)} 
+            onSuccess={(msg) => pushFeed('Success', msg)} 
+          />
+        )}
+        {activeTab === 'reports' && can(role, 'analytics:view') && (
+          <ReportsSection 
             onError={(msg) => pushFeed('Error', msg)} 
             onSuccess={(msg) => pushFeed('Success', msg)} 
           />

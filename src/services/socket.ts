@@ -51,13 +51,38 @@ export function connectAdminSocket(onEvent: (title: string, detail: string) => v
     onEvent('Admin activity', `${payload?.details || 'An admin action occurred.'}`),
   );
   socket.on(socketEvents.DOMAIN.REFUND_CREATED, payload =>
-    onEvent('Refund created', `${payload?.refund?.refundAmount ? 'Refund requested' : 'Refund created'}`),
+    onEvent(
+      'Refund created',
+      payload?.refund?.refundAmount
+        ? 'Refund requested'
+        : payload?.refundId
+        ? `Refund ${payload.refundId} created`
+        : 'Refund created',
+    ),
   );
   socket.on(socketEvents.DOMAIN.REFUND_UPDATED, payload =>
-    onEvent('Refund updated', `${payload?.refund?._id || 'A refund'} updated: ${payload?.refund?.status || ''}`),
+    onEvent(
+      'Refund updated',
+      `Refund ${payload?.refund?._id || payload?.refundId || 'updated'} status: ${payload?.refund?.status || payload?.refundStatus || payload?.status || 'updated'}`,
+    ),
   );
   socket.on(socketEvents.DOMAIN.REFUND_LEDGER_UPDATED, payload =>
-    onEvent('Refund ledger', `${payload?.message || 'Refund ledger updated'}`),
+    onEvent(
+      'Refund ledger',
+      `Refund ledger ${payload?.ledgerId || payload?.refundId || ''} ${payload?.status ? `is ${payload.status}` : 'updated'}`,
+    ),
+  );
+  socket.on(socketEvents.DOMAIN.TICKET_CREATED, payload =>
+    onEvent('Ticket created', `Support ticket ${payload?.ticketId || 'unknown'} created.`),
+  );
+  socket.on(socketEvents.DOMAIN.TICKET_UPDATED, payload =>
+    onEvent('Ticket updated', `Ticket ${payload?.ticketId || 'unknown'} updated: ${payload?.status || ''}`),
+  );
+  socket.on(socketEvents.DOMAIN.TICKET_MESSAGE_ADDED, payload =>
+    onEvent(
+      'Ticket message',
+      `New message on ticket ${payload?.ticketId || 'unknown'}: ${payload?.message || 'message added'}`,
+    ),
   );
 
   return () => {

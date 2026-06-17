@@ -15,6 +15,9 @@ export const socketEvents = {
     REFUND_CREATED: 'refund.created',
     REFUND_UPDATED: 'refund.updated',
     REFUND_LEDGER_UPDATED: 'refund.ledger.updated',
+    TICKET_CREATED: 'ticket.created',
+    TICKET_UPDATED: 'ticket.updated',
+    TICKET_MESSAGE_ADDED: 'ticket.message.added',
   },
   LEGACY: {
     USER_LOGIN: 'user-login',
