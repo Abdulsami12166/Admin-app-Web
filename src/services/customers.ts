@@ -11,6 +11,19 @@ export interface Customer {
   lastLogin?: string;
   createdAt: string;
   updatedAt: string;
+  lastActivityAt?: string;
+  wishlistCount?: number;
+  orders?: Array<Record<string, unknown>>;
+  addresses?: Array<{_id?: string; type: string; address: string}>;
+  wishlist?: Array<Record<string, unknown>>;
+  ordersPlaced?: number;
+  ordersCancelled?: number;
+  ordersReturned?: number;
+  refundRequests?: Array<Record<string, unknown>>;
+  ticketsRaised?: Array<Record<string, unknown>>;
+  chatHistory?: Array<Record<string, unknown>>;
+  cartActivity?: Array<Record<string, unknown>>;
+  notificationHistory?: Array<Record<string, unknown>>;
 }
 
 export interface CustomerDetail extends Customer {
@@ -21,9 +34,10 @@ export interface CustomerDetail extends Customer {
 export interface ActivityLog {
   _id: string;
   action: string;
-  resource: string;
-  timestamp: string;
-  details?: Record<string, unknown>;
+  resource?: string;
+  timestamp?: string;
+  createdAt?: string;
+  details?: Record<string, unknown> | string;
 }
 
 export interface NotificationPreference {
@@ -36,8 +50,16 @@ export interface NotificationPreference {
 }
 
 export const customerApi = {
-  async getCustomers(page = 1, limit = 20, search = '') {
-    return adminApi(`/admin/customers?page=${page}&limit=${limit}&search=${search}`, 'GET');
+  async getCustomers(page = 1, limit = 20, search = '', status = '', sortBy = 'createdAt', sortOrder = 'desc') {
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+      search,
+      status,
+      sortBy,
+      sortOrder,
+    });
+    return adminApi(`/admin/customers?${params.toString()}`, 'GET');
   },
 
   async getCustomerDetail(userId: string) {
