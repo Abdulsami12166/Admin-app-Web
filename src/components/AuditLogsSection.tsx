@@ -91,7 +91,7 @@ export function AuditLogsSection({ onError, onSuccess }: AuditLogsProps) {
           </thead>
           <tbody>
             {logs.map(log => (
-              <div key={log._id}>
+              <React.Fragment key={log._id}>
                 <tr>
                   <td style={{ fontWeight: 700 }}>{log.action}</td>
                   <td><small>{log.entityType || '—'}</small></td>
@@ -107,7 +107,7 @@ export function AuditLogsSection({ onError, onSuccess }: AuditLogsProps) {
                     </td>
                   </tr>
                 )}
-              </div>
+              </React.Fragment>
             ))}
           </tbody>
         </table>

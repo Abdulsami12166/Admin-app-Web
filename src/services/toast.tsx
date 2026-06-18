@@ -122,10 +122,10 @@ export function ToastContainer() {
     };
 
     const typeStyles = {
-      success: { backgroundColor: '#d4edda', color: '#155724', borderLeft: '4px solid #28a745' },
-      error: { backgroundColor: '#f8d7da', color: '#721c24', borderLeft: '4px solid #dc3545' },
-      warning: { backgroundColor: '#fff3cd', color: '#856404', borderLeft: '4px solid #ffc107' },
-      info: { backgroundColor: '#d1ecf1', color: '#0c5460', borderLeft: '4px solid #17a2b8' },
+      success: { backgroundColor: 'rgba(10, 41, 27, 0.95)', color: '#43d17a', borderLeft: '4px solid #43d17a', border: '1px solid rgba(67, 209, 122, 0.2)' },
+      error: { backgroundColor: 'rgba(45, 22, 22, 0.95)', color: '#ff8b8b', borderLeft: '4px solid #ff8b8b', border: '1px solid rgba(255, 139, 139, 0.2)' },
+      warning: { backgroundColor: 'rgba(43, 32, 11, 0.95)', color: '#ffc107', borderLeft: '4px solid #ffc107', border: '1px solid rgba(255, 193, 7, 0.2)' },
+      info: { backgroundColor: 'rgba(13, 37, 60, 0.95)', color: '#63d2ff', borderLeft: '4px solid #63d2ff', border: '1px solid rgba(99, 210, 255, 0.2)' },
     };
 
     return { ...baseStyle, ...typeStyles[type] };

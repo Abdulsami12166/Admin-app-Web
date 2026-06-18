@@ -1,9 +1,44 @@
 /**
- * Confirmation dialogs and modals for admin actions
+ * Confirmation dialogs and modals for admin actions — dark navy theme
  */
 
 import React, { useState } from 'react';
 
+// ─── Shared overlay backdrop ───────────────────────────────────────────────
+const Backdrop: React.FC<{ onClick: () => void; children: React.ReactNode }> = ({ onClick, children }) => (
+  <div
+    style={{
+      position: 'fixed', inset: 0,
+      background: 'rgba(4, 12, 24, 0.75)',
+      backdropFilter: 'blur(3px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      zIndex: 1000,
+    }}
+    onClick={onClick}
+  >
+    {children}
+  </div>
+);
+
+// ─── Shared modal card ──────────────────────────────────────────────────────
+const ModalCard: React.FC<{ children: React.ReactNode; maxWidth?: number }> = ({ children, maxWidth = 420 }) => (
+  <div
+    style={{
+      background: 'linear-gradient(145deg, #0d1f33, #06101d)',
+      border: '1px solid #28425f',
+      borderRadius: 20,
+      padding: '28px 28px 24px',
+      maxWidth,
+      width: '90%',
+      boxShadow: '0 24px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(99,210,255,0.07)',
+    }}
+    onClick={e => e.stopPropagation()}
+  >
+    {children}
+  </div>
+);
+
+// ─── Confirmation Dialog ────────────────────────────────────────────────────
 interface ConfirmationDialogProps {
   title: string;
   message: string;
@@ -19,11 +54,8 @@ interface ConfirmationDialogProps {
 }
 
 export function ConfirmationDialog({
-  title,
-  message,
-  description,
-  onConfirm,
-  onCancel,
+  title, message, description,
+  onConfirm, onCancel,
   loading = false,
   confirmText = 'Confirm',
   cancelText = 'Cancel',
@@ -41,106 +73,62 @@ export function ConfirmationDialog({
     onConfirm();
   };
 
-  const isConfirmDisabled = loading || (requiresReason && !reason.trim());
+  const isDisabled = loading || (requiresReason && !reason.trim());
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-      }}
-      onClick={onCancel}
-    >
-      <div
-        style={{
-          backgroundColor: 'white',
-          borderRadius: '12px',
-          padding: '24px',
-          maxWidth: '400px',
-          width: '90%',
-          boxShadow: '0 20px 25px rgba(0, 0, 0, 0.15)',
-        }}
-        onClick={e => e.stopPropagation()}
-      >
-        <div style={{ marginBottom: '16px' }}>
-          <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>{title}</h2>
-          {description && (
-            <p style={{ margin: '8px 0 0', fontSize: '14px', color: '#666' }}>
-              {description}
-            </p>
-          )}
+    <Backdrop onClick={onCancel}>
+      <ModalCard>
+        {/* Icon */}
+        <div style={{ width: 52, height: 52, borderRadius: '50%', background: isDangerous ? 'rgba(255,139,139,0.15)' : 'rgba(99,210,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, marginBottom: 16 }}>
+          {isDangerous ? '⚠️' : '?'}
         </div>
 
-        <div style={{ marginBottom: '20px', padding: '12px', backgroundColor: '#f5f5f5', borderRadius: '8px' }}>
-          <p style={{ margin: 0, fontSize: '14px', color: '#333' }}>{message}</p>
+        <h2 style={{ margin: '0 0 6px', color: '#eef4fb', fontSize: 18, fontWeight: 800 }}>{title}</h2>
+        {description && <p style={{ margin: '0 0 14px', fontSize: 13, color: '#9fb6cb' }}>{description}</p>}
+
+        {/* Message box */}
+        <div style={{ marginBottom: 18, padding: '12px 14px', background: isDangerous ? 'rgba(255,139,139,0.08)' : 'rgba(99,210,255,0.07)', borderRadius: 12, border: `1px solid ${isDangerous ? 'rgba(255,139,139,0.2)' : 'rgba(99,210,255,0.15)'}` }}>
+          <p style={{ margin: 0, fontSize: 14, color: '#dbe8f5', lineHeight: 1.6 }}>{message}</p>
         </div>
 
+        {/* Optional reason textarea */}
         {requiresReason && (
-          <div style={{ marginBottom: '20px' }}>
+          <div style={{ marginBottom: 18 }}>
+            <label style={{ display: 'block', marginBottom: 6, fontSize: 12, color: '#9fb6cb', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+              Reason (required)
+            </label>
             <textarea
               value={reason}
               onChange={e => setReason(e.target.value)}
               placeholder={reasonPlaceholder}
-              style={{
-                width: '100%',
-                minHeight: '80px',
-                padding: '8px',
-                border: '1px solid #ddd',
-                borderRadius: '6px',
-                fontSize: '14px',
-                fontFamily: 'inherit',
-                resize: 'none',
-              }}
+              style={{ width: '100%', minHeight: 80, padding: '10px 12px', border: '1px solid #28425f', borderRadius: 12, background: '#08111f', color: '#eef4fb', fontSize: 13, fontFamily: 'inherit', resize: 'none', outline: 'none', boxSizing: 'border-box' }}
             />
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+        {/* Action buttons */}
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
           <button
             onClick={onCancel}
             disabled={loading}
-            style={{
-              padding: '8px 16px',
-              borderRadius: '6px',
-              border: '1px solid #ddd',
-              backgroundColor: '#fff',
-              color: '#333',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? 0.5 : 1,
-              fontSize: '14px',
-              fontWeight: '500',
-            }}
+            style={{ padding: '9px 20px', borderRadius: 12, border: '1px solid #28425f', background: 'transparent', color: '#9fb6cb', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.5 : 1, fontSize: 14, fontWeight: 700, transition: 'all 0.15s' }}
           >
             {cancelText}
           </button>
           <button
             onClick={handleConfirm}
-            disabled={isConfirmDisabled}
-            style={{
-              padding: '8px 16px',
-              borderRadius: '6px',
-              border: 'none',
-              backgroundColor: isDangerous ? '#dc3545' : '#007bff',
-              color: 'white',
-              cursor: isConfirmDisabled ? 'not-allowed' : 'pointer',
-              opacity: isConfirmDisabled ? 0.5 : 1,
-              fontSize: '14px',
-              fontWeight: '500',
-            }}
+            disabled={isDisabled}
+            style={{ padding: '9px 20px', borderRadius: 12, border: 'none', background: isDangerous ? 'rgba(255,139,139,0.2)' : '#63d2ff', color: isDangerous ? '#ff8b8b' : '#06101d', cursor: isDisabled ? 'not-allowed' : 'pointer', opacity: isDisabled ? 0.5 : 1, fontSize: 14, fontWeight: 800, transition: 'all 0.15s' }}
           >
-            {loading ? 'Processing...' : confirmText}
+            {loading ? 'Processing…' : confirmText}
           </button>
         </div>
-      </div>
-    </div>
+      </ModalCard>
+    </Backdrop>
   );
 }
 
+// ─── Success Modal ──────────────────────────────────────────────────────────
 interface SuccessModalProps {
   title: string;
   message: string;
@@ -157,57 +145,27 @@ export function SuccessModal({ title, message, onClose, autoCloseDelay = 3000 }:
   }, [autoCloseDelay, onClose]);
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.3)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          backgroundColor: 'white',
-          borderRadius: '12px',
-          padding: '32px',
-          maxWidth: '400px',
-          width: '90%',
-          boxShadow: '0 20px 25px rgba(0, 0, 0, 0.15)',
-          textAlign: 'center',
-        }}
-        onClick={e => e.stopPropagation()}
-      >
-        <div style={{ marginBottom: '16px', fontSize: '48px' }}>✓</div>
-        <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '600', color: '#28a745', marginBottom: '8px' }}>
-          {title}
-        </h2>
-        <p style={{ margin: 0, fontSize: '14px', color: '#666' }}>{message}</p>
-
-        <button
-          onClick={onClose}
-          style={{
-            marginTop: '20px',
-            padding: '8px 24px',
-            borderRadius: '6px',
-            border: 'none',
-            backgroundColor: '#28a745',
-            color: 'white',
-            cursor: 'pointer',
-            fontSize: '14px',
-            fontWeight: '500',
-          }}
-        >
-          Close
-        </button>
-      </div>
-    </div>
+    <Backdrop onClick={onClose}>
+      <ModalCard maxWidth={380}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(67,209,122,0.15)', border: '2px solid rgba(67,209,122,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: 28 }}>
+            ✓
+          </div>
+          <h2 style={{ margin: '0 0 8px', color: '#43d17a', fontSize: 20, fontWeight: 800 }}>{title}</h2>
+          <p style={{ margin: '0 0 20px', fontSize: 14, color: '#9fb6cb', lineHeight: 1.6 }}>{message}</p>
+          <button
+            onClick={onClose}
+            style={{ padding: '9px 28px', borderRadius: 12, background: 'rgba(67,209,122,0.2)', color: '#43d17a', cursor: 'pointer', fontSize: 14, fontWeight: 700, border: '1px solid rgba(67,209,122,0.3)' } as React.CSSProperties}
+          >
+            Close
+          </button>
+        </div>
+      </ModalCard>
+    </Backdrop>
   );
 }
 
+// ─── Error Modal ────────────────────────────────────────────────────────────
 interface ErrorModalProps {
   title: string;
   message: string;
@@ -217,95 +175,50 @@ interface ErrorModalProps {
   onClose: () => void;
 }
 
-export function ErrorModal({
-  title,
-  message,
-  details,
-  errorCode,
-  onRetry,
-  onClose,
-}: ErrorModalProps) {
+export function ErrorModal({ title, message, details, errorCode, onRetry, onClose }: ErrorModalProps) {
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.3)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          backgroundColor: 'white',
-          borderRadius: '12px',
-          padding: '32px',
-          maxWidth: '450px',
-          width: '90%',
-          boxShadow: '0 20px 25px rgba(0, 0, 0, 0.15)',
-        }}
-        onClick={e => e.stopPropagation()}
-      >
-        <div style={{ marginBottom: '16px', fontSize: '48px' }}>✕</div>
-        <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '600', color: '#dc3545', marginBottom: '8px' }}>
-          {title}
-        </h2>
-        <p style={{ margin: 0, fontSize: '14px', color: '#666', marginBottom: '12px' }}>{message}</p>
+    <Backdrop onClick={onClose}>
+      <ModalCard maxWidth={460}>
+        <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'rgba(255,139,139,0.15)', border: '2px solid rgba(255,139,139,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, marginBottom: 16 }}>
+          ✕
+        </div>
+        <h2 style={{ margin: '0 0 8px', color: '#ff8b8b', fontSize: 20, fontWeight: 800 }}>{title}</h2>
+        <p style={{ margin: '0 0 14px', fontSize: 14, color: '#9fb6cb', lineHeight: 1.6 }}>{message}</p>
 
         {details && (
-          <div style={{ marginBottom: '12px', padding: '12px', backgroundColor: '#f8d7da', borderRadius: '6px' }}>
-            <p style={{ margin: 0, fontSize: '13px', color: '#721c24' }}>{details}</p>
+          <div style={{ marginBottom: 12, padding: '12px 14px', background: 'rgba(255,139,139,0.08)', borderRadius: 12, border: '1px solid rgba(255,139,139,0.2)' }}>
+            <p style={{ margin: 0, fontSize: 13, color: '#ff8b8b' }}>{details}</p>
           </div>
         )}
 
         {errorCode && (
-          <div style={{ marginBottom: '16px', padding: '8px 12px', backgroundColor: '#f5f5f5', borderRadius: '6px' }}>
-            <p style={{ margin: 0, fontSize: '12px', color: '#999' }}>Error Code: {errorCode}</p>
+          <div style={{ marginBottom: 16, padding: '8px 12px', background: 'rgba(10,23,40,0.8)', borderRadius: 10, border: '1px solid #28425f' }}>
+            <p style={{ margin: 0, fontSize: 12, color: '#9fb6cb', fontFamily: 'monospace' }}>Error Code: {errorCode}</p>
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
           <button
             onClick={onClose}
-            style={{
-              padding: '8px 16px',
-              borderRadius: '6px',
-              border: '1px solid #ddd',
-              backgroundColor: '#fff',
-              color: '#333',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '500',
-            }}
+            style={{ padding: '9px 20px', borderRadius: 12, border: '1px solid #28425f', background: 'transparent', color: '#9fb6cb', cursor: 'pointer', fontSize: 14, fontWeight: 700 }}
           >
             Close
           </button>
           {onRetry && (
             <button
               onClick={onRetry}
-              style={{
-                padding: '8px 16px',
-                borderRadius: '6px',
-                border: 'none',
-                backgroundColor: '#007bff',
-                color: 'white',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '500',
-              }}
+              style={{ padding: '9px 20px', borderRadius: 12, border: 'none', background: '#63d2ff', color: '#06101d', cursor: 'pointer', fontSize: 14, fontWeight: 800 }}
             >
               Retry
             </button>
           )}
         </div>
-      </div>
-    </div>
+      </ModalCard>
+    </Backdrop>
   );
 }
 
+// ─── Loading Overlay ────────────────────────────────────────────────────────
 interface LoadingOverlayProps {
   message?: string;
   progress?: number;
@@ -314,67 +227,23 @@ interface LoadingOverlayProps {
 export function LoadingOverlay({ message = 'Loading...', progress }: LoadingOverlayProps) {
   return (
     <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-      }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(4,12,24,0.75)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
     >
-      <div
-        style={{
-          backgroundColor: 'white',
-          borderRadius: '12px',
-          padding: '32px',
-          textAlign: 'center',
-          maxWidth: '300px',
-        }}
-      >
-        <div
-          style={{
-            width: '48px',
-            height: '48px',
-            border: '4px solid #f0f0f0',
-            borderTop: '4px solid #007bff',
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite',
-            margin: '0 auto 16px',
-          }}
-        />
-        <p style={{ margin: 0, fontSize: '14px', color: '#666' }}>{message}</p>
+      <div style={{ background: 'linear-gradient(145deg,#0d1f33,#06101d)', border: '1px solid #28425f', borderRadius: 20, padding: '32px 40px', textAlign: 'center', maxWidth: 300, boxShadow: '0 24px 60px rgba(0,0,0,0.6)' }}>
+        {/* Spinner */}
+        <div style={{ width: 48, height: 48, border: '3px solid #1a3050', borderTop: '3px solid #63d2ff', borderRadius: '50%', animation: 'admin-spin 0.85s linear infinite', margin: '0 auto 16px' }} />
+        <p style={{ margin: 0, fontSize: 14, color: '#9fb6cb', fontWeight: 700 }}>{message}</p>
+
         {typeof progress === 'number' && (
-          <div style={{ marginTop: '12px' }}>
-            <div
-              style={{
-                width: '100%',
-                height: '4px',
-                backgroundColor: '#f0f0f0',
-                borderRadius: '2px',
-                overflow: 'hidden',
-              }}
-            >
-              <div
-                style={{
-                  width: `${progress}%`,
-                  height: '100%',
-                  backgroundColor: '#007bff',
-                  transition: 'width 0.3s',
-                }}
-              />
+          <div style={{ marginTop: 16 }}>
+            <div style={{ width: '100%', height: 5, background: '#1a3050', borderRadius: 999, overflow: 'hidden' }}>
+              <div style={{ width: `${progress}%`, height: '100%', background: 'linear-gradient(90deg,#63d2ff,#43d17a)', transition: 'width 0.3s', borderRadius: 999 }} />
             </div>
-            <p style={{ margin: '8px 0 0', fontSize: '12px', color: '#999' }}>
-              {progress}%
-            </p>
+            <p style={{ margin: '8px 0 0', fontSize: 12, color: '#9fb6cb' }}>{progress}%</p>
           </div>
         )}
-        <style>{`
-          @keyframes spin {
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
+
+        <style>{`@keyframes admin-spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     </div>
   );
