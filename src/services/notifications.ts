@@ -91,4 +91,7 @@ export const notificationsApi = {
 
   deleteMarketingRule: async (ruleId: string) =>
     adminApi.delete(`/admin/notifications/marketing-rules/${ruleId}`),
+  // Send direct notification
+  sendNotification: async (data: { userId?: string; role?: string; channel: string; title?: string; body: string }) =>
+    adminApi('/admin/notifications/send', 'POST', data),
 };

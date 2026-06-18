@@ -24,7 +24,8 @@ export default function RefundsAdminSection() {
     setLoading(true);
     try {
       const res = await adminApi.getRefunds(p, limit);
-      setRefunds(res.data?.refunds || []);
+      // ponytail: Support flat response directly at root or wrapped data object for refunds
+      setRefunds((res as any).refunds || res.data?.refunds || []);
     } catch (err) {
       console.error('Failed to load refunds', err);
     } finally {

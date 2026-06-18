@@ -32,7 +32,8 @@ export function ReturnsRefundsSection({ onError, onSuccess }: ReturnsRefundsProp
     setLoading(true);
     try {
       const result = await returnsApi.getReturns(1, 50);
-      setReturns(result.data?.returns || []);
+      // ponytail: Support flat response directly at root or wrapped data object
+      setReturns(result.returns || result.data?.returns || []);
     } catch (err) {
       onError(`Failed to load returns: ${err}`);
     } finally {
@@ -44,7 +45,8 @@ export function ReturnsRefundsSection({ onError, onSuccess }: ReturnsRefundsProp
     setLoading(true);
     try {
       const result = await refundsApi.getRefunds(1, 50);
-      setRefunds(result.data?.refunds || []);
+      // ponytail: Support flat response directly at root or wrapped data object
+      setRefunds(result.refunds || result.data?.refunds || []);
     } catch (err) {
       onError(`Failed to load refunds: ${err}`);
     } finally {
@@ -135,20 +137,81 @@ export function ReturnsRefundsSection({ onError, onSuccess }: ReturnsRefundsProp
           {returnBadge(selectedReturn.status)}
         </div>
 
-        <div className="section-box kv-list" style={{ marginBottom: '1.25rem' }}>
-          <p><strong>Status</strong> {returnBadge(selectedReturn.status)}</p>
-          <p><strong>Items</strong> {selectedReturn.returnItems.length}</p>
+        <div className="detail-grid" style={{ marginBottom: '1.25rem' }}>
+          <div className="section-box kv-list">
+            <h3 style={{ margin: '0 0 1rem', color: '#63d2ff', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Return Request Info</h3>
+            <p><strong>Status</strong> {returnBadge(selectedReturn.status)}</p>
+            <p><strong>Items</strong> {selectedReturn.returnItems.length}</p>
+            <p><strong>Created At</strong> {new Date(selectedReturn.createdAt).toLocaleString()}</p>
+            {selectedReturn.rejectionReason && <p><strong>Rejection Reason</strong> <span style={{ color: '#ff8b8b' }}>{selectedReturn.rejectionReason}</span></p>}
+          </div>
+
+          <div className="section-box kv-list">
+            <h3 style={{ margin: '0 0 1rem', color: '#63d2ff', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Pickup Address</h3>
+            {selectedReturn.pickupAddress ? (
+              <>
+                <p><strong>Street</strong> {selectedReturn.pickupAddress.street || '—'}</p>
+                <p><strong>City/State</strong> {selectedReturn.pickupAddress.city || '—'}, {selectedReturn.pickupAddress.state || '—'}</p>
+                <p><strong>Zip Code</strong> {selectedReturn.pickupAddress.zipCode || '—'}</p>
+              </>
+            ) : (
+              <p>No pickup address provided</p>
+            )}
+          </div>
         </div>
 
-        <section className="panel">
+        <section className="panel" style={{ marginBottom: '1.25rem' }}>
           <h2>Return Items</h2>
-          {selectedReturn.returnItems.map((item, i) => (
-            <div key={i} className="timeline-entry tl-info">
-              <strong>{typeof item.product === 'object' ? ((item.product as any).name || (item.product as any).title || 'Product') : item.product}</strong>
-              <small>Qty: {item.quantity} · Reason: {item.reason} · Condition: {item.condition}</small>
-            </div>
-          ))}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '0.5rem' }}>
+            {selectedReturn.returnItems.map((item, i) => {
+              const prod = item.product as any;
+              const title = typeof prod === 'object' ? (prod.name || prod.title || 'Product') : String(prod);
+              const price = typeof prod === 'object' ? prod.price : null;
+              const imgUrl = typeof prod === 'object' && Array.isArray(prod.images) && prod.images[0] ? prod.images[0] : null;
+
+              return (
+                <div key={i} style={{ display: 'flex', gap: '1rem', alignItems: 'center', background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '12px', border: '1px solid #28425f' }}>
+                  {imgUrl && (
+                    <img 
+                      src={imgUrl} 
+                      alt={title} 
+                      style={{ width: '64px', height: '64px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #28425f' }} 
+                      onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                    />
+                  )}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, color: '#eef4fb', fontSize: '0.95rem' }}>{title}</div>
+                    <div style={{ color: '#9fb6cb', fontSize: '0.8rem', marginTop: '4px' }}>
+                      Qty: <span style={{ color: '#63d2ff', fontWeight: 600 }}>{item.quantity}</span>
+                      {price && ` · Price: ₹${price}`}
+                    </div>
+                    <div style={{ color: '#9fb6cb', fontSize: '0.8rem', marginTop: '2px' }}>
+                      Reason: <span style={{ color: '#fcc419', fontWeight: 700 }}>{item.reason?.replace(/_/g, ' ')}</span> · Condition: <span>{item.condition}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </section>
+
+        {selectedReturn.images && selectedReturn.images.length > 0 && (
+          <section className="panel" style={{ marginBottom: '1.25rem' }}>
+            <h2>Customer Uploaded Images</h2>
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
+              {selectedReturn.images.map((img, idx) => (
+                <a key={idx} href={img} target="_blank" rel="noreferrer">
+                  <img 
+                    src={img} 
+                    alt={`Attachment ${idx + 1}`} 
+                    style={{ width: '120px', height: '120px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #28425f', cursor: 'pointer' }}
+                    onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                  />
+                </a>
+              ))}
+            </div>
+          </section>
+        )}
 
         {selectedReturn.status === 'initiated' && (
           <div className="action-bar">
@@ -169,23 +232,54 @@ export function ReturnsRefundsSection({ onError, onSuccess }: ReturnsRefundsProp
           {returnBadge(selectedRefund.status)}
         </div>
 
-        <div className="detail-grid">
+        <div className="detail-grid" style={{ marginBottom: '1.25rem' }}>
           <div className="section-box kv-list">
             <h3 style={{ margin: '0 0 1rem', color: '#63d2ff', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Refund Info</h3>
             <p><strong>Status</strong> {returnBadge(selectedRefund.status)}</p>
             <p><strong>Amount</strong> <span style={{ color: '#63d2ff', fontWeight: 800 }}>₹{selectedRefund.refundAmount}</span></p>
             <p><strong>Type</strong> {selectedRefund.refundType}</p>
-            <p><strong>Reason</strong> {selectedRefund.reason}</p>
+            <p><strong>Reason</strong> <span style={{ color: '#fcc419', fontWeight: 700 }}>{selectedRefund.reason?.replace(/_/g, ' ')}</span></p>
+            {selectedRefund.rejectionReason && <p><strong>Rejection Reason</strong> <span style={{ color: '#ff8b8b' }}>{selectedRefund.rejectionReason}</span></p>}
           </div>
 
           <div className="section-box kv-list">
             <h3 style={{ margin: '0 0 1rem', color: '#63d2ff', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Breakdown</h3>
-            <p><strong>Product Amount</strong> ₹{selectedRefund.refundBreakdown.productAmount}</p>
-            <p><strong>Shipping</strong> ₹{selectedRefund.refundBreakdown.shippingRefund}</p>
-            <p><strong>Tax</strong> ₹{selectedRefund.refundBreakdown.taxRefund}</p>
-            <p><strong>Additional Credit</strong> ₹{selectedRefund.refundBreakdown.additionalCredit}</p>
+            <p><strong>Product Amount</strong> ₹{selectedRefund.refundBreakdown?.productAmount ?? 0}</p>
+            <p><strong>Shipping</strong> ₹{selectedRefund.refundBreakdown?.shippingRefund ?? 0}</p>
+            <p><strong>Tax</strong> ₹{selectedRefund.refundBreakdown?.taxRefund ?? 0}</p>
+            <p><strong>Additional Credit</strong> ₹{selectedRefund.refundBreakdown?.additionalCredit ?? 0}</p>
           </div>
         </div>
+
+        {selectedRefund.items && selectedRefund.items.length > 0 && (
+          <section className="panel" style={{ marginBottom: '1.25rem' }}>
+            <h2>Refund Items</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '0.5rem' }}>
+              {selectedRefund.items.map((item: any, i) => {
+                const title = item.name || item.title || 'Product';
+                const price = item.price;
+                const imgUrl = Array.isArray(item.images) && item.images[0] ? item.images[0] : null;
+
+                return (
+                  <div key={i} style={{ display: 'flex', gap: '1rem', alignItems: 'center', background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '12px', border: '1px solid #28425f' }}>
+                    {imgUrl && (
+                      <img 
+                        src={imgUrl} 
+                        alt={title} 
+                        style={{ width: '64px', height: '64px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #28425f' }} 
+                        onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                      />
+                    )}
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, color: '#eef4fb', fontSize: '0.95rem' }}>{title}</div>
+                      {price && <div style={{ color: '#9fb6cb', fontSize: '0.8rem', marginTop: '4px' }}>Price: ₹{price}</div>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {selectedRefund.status === 'initiated' && (
           <div className="action-bar">
