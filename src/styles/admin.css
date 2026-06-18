@@ -1,4 +1,4 @@
-:root {
+﻿:root {
   color-scheme: dark;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: #07111f;
@@ -603,6 +603,201 @@ textarea:focus {
   gap: 0.9rem;
 }
 
+.info {
+  margin: 0;
+  color: #63d2ff;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+.table-card {
+}
+
+.table-card.plain {
+  border: 0;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid rgba(40, 66, 95, 0.8);
+  vertical-align: top;
+}
+
+th {
+  color: #9fb6cb;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+td {
+  color: #eef4fb;
+}
+
+td button {
+  margin-right: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.product-form {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  border: 1px solid #28425f;
+  border-radius: 14px;
+  background: #08111f;
+  color: #eef4fb;
+  padding: 0.9rem 1rem;
+  outline: none;
+}
+
+textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #63d2ff;
+  box-shadow: 0 0 0 4px rgba(99, 210, 255, 0.12);
+}
+
+.upload-box,
+.size-box {
+  padding: 1rem;
+  border-radius: 16px;
+  border: 1px dashed #3b5f84;
+  background: rgba(99, 210, 255, 0.08);
+}
+
+.upload-box {
+  cursor: pointer;
+}
+
+.upload-box input[type="file"] {
+  margin-top: 0.8rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.upload-box strong,
+.upload-box span,
+.size-box strong,
+.size-box span {
+  display: block;
+}
+
+.upload-box span,
+.size-box.muted {
+  color: #9fb6cb;
+  margin-top: 0.35rem;
+}
+
+.size-box div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.8rem;
+}
+
+.size-box div span {
+  width: 42px;
+  padding: 0.45rem 0;
+  border-radius: 999px;
+  background: #63d2ff;
+  color: #06101d;
+  text-align: center;
+  font-weight: 900;
+}
+
+.image-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.image-preview {
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #28425f;
+  border-radius: 16px;
+  background: #08111f;
+  color: #eef4fb;
+}
+
+.image-preview img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+
+.image-preview span {
+  display: block;
+  padding: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.upload-progress {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #08111f;
+  border: 1px solid #28425f;
+}
+
+.upload-progress span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #63d2ff, #43d17a);
+  transition: width 0.2s ease;
+}
+
+.check-line {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: #eef4fb;
+  font-weight: 700;
+}
+
+.check-line input {
+  width: auto;
+}
+
+.login-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+}
+
+.login-card {
+  width: min(460px, 100%);
+  padding: 2rem;
+  display: grid;
+  gap: 0.9rem;
+}
+
 .login-card label {
   color: #9fb6cb;
   font-weight: 800;
@@ -614,7 +809,14 @@ textarea:focus {
   font-weight: 800;
 }
 
-/* ── Dark-theme section utilities ──────────────────────────────────── */
+.info {
+  margin: 0;
+  color: #63d2ff;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+/* â”€â”€ Dark-theme section utilities â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .section-box {
   background: rgba(16, 32, 51, 0.92);
