@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { shipmentsApi, type Shipment, type TrackingEvent } from '../services/shipments';
+import { subscribeAdminSocketEvent } from '../services/socket';
+import { socketEvents } from '../services/events';
 
 interface ShipmentsProps {
   onError: (msg: string) => void;
@@ -75,6 +77,24 @@ export function ShipmentsSection({ onError, onSuccess }: ShipmentsProps) {
   };
 
   useEffect(() => { loadShipments(); }, [statusFilter]);
+
+  // Real-time socket subscriptions for shipments
+  useEffect(() => {
+    const unsubCreated = subscribeAdminSocketEvent(socketEvents.DOMAIN.SHIPMENT_CREATED, () => {
+      loadShipments();
+    });
+    const unsubUpdated = subscribeAdminSocketEvent(socketEvents.DOMAIN.SHIPMENT_UPDATED, (payload: any) => {
+      // If the updated shipment is currently selected, reload its detail
+      if (selectedShipment && selectedShipment._id === payload?.shipmentId) {
+        loadShipmentDetail(selectedShipment._id);
+      }
+      loadShipments();
+    });
+    return () => {
+      unsubCreated();
+      unsubUpdated();
+    };
+  }, [selectedShipment]);
 
   if (selectedShipment) {
     return (

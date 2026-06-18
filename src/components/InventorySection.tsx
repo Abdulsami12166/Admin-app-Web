@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { inventoryApi, type InventoryItem, type StockMovement } from '../services/inventory';
+import { subscribeAdminSocketEvent } from '../services/socket';
+import { socketEvents } from '../services/events';
 
 interface InventoryProps {
   onError: (msg: string) => void;
@@ -94,6 +96,20 @@ export function InventorySection({ onError, onSuccess }: InventoryProps) {
   };
 
   useEffect(() => { loadInventory(); }, [showLowStockOnly]);
+
+  // Real-time socket subscriptions
+  useEffect(() => {
+    const unsubUpdated = subscribeAdminSocketEvent(socketEvents.DOMAIN.INVENTORY_UPDATED, () => {
+      loadInventory();
+    });
+    const unsubLowStock = subscribeAdminSocketEvent(socketEvents.DOMAIN.LOW_STOCK_ALERT, () => {
+      loadInventory();
+    });
+    return () => {
+      unsubUpdated();
+      unsubLowStock();
+    };
+  }, []);
 
   if (selectedItem) {
     const name = productName(selectedItem);

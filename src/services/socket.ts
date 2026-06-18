@@ -91,6 +91,29 @@ export function connectAdminSocket(onEvent: (title: string, detail: string) => v
     onEvent('Return updated', `Return ${payload?.returnId || 'unknown'} status: ${payload?.status || 'updated'}`),
   );
 
+  // Inventory real-time toasts
+  socket.on(socketEvents.DOMAIN.LOW_STOCK_ALERT, (payload: any) => {
+    const name = payload?.product?.title || payload?.product?.name || 'A product';
+    onEvent('⚠️ Low Stock Alert', `${name} is running low (${payload?.currentStock ?? '?'} left, reorder at ${payload?.reorderLevel ?? '?'})`);
+  });
+  socket.on(socketEvents.DOMAIN.INVENTORY_UPDATED, (payload: any) => {
+    const name = payload?.inventory?.product?.title || 'Inventory';
+    onEvent('📦 Stock Updated', `${name} stock updated to ${payload?.inventory?.currentStock ?? '?'} units.`);
+  });
+
+  // Shipment real-time toasts
+  socket.on(socketEvents.DOMAIN.SHIPMENT_CREATED, (payload: any) => {
+    onEvent('🚚 Shipment Created', `New shipment created for order.`);
+  });
+  socket.on(socketEvents.DOMAIN.SHIPMENT_UPDATED, (payload: any) => {
+    onEvent('🚚 Shipment Updated', `Shipment status changed to ${payload?.status || 'updated'}.`);
+  });
+
+  // Audit log real-time toasts
+  socket.on(socketEvents.DOMAIN.AUDIT_LOG_CREATED, (payload: any) => {
+    onEvent('📋 Audit Log', `${payload?.action || 'Admin action'} by ${payload?.actor?.name || 'admin'}.`);
+  });
+
   return () => {
     socket?.disconnect();
     socket = null;

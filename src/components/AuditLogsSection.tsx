@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { auditLogsApi, type AuditLog } from '../services/auditLogs';
+import { subscribeAdminSocketEvent } from '../services/socket';
+import { socketEvents } from '../services/events';
 
 interface AuditLogsProps {
   onError: (msg: string) => void;
@@ -66,6 +68,14 @@ export function AuditLogsSection({ onError, onSuccess }: AuditLogsProps) {
   useEffect(() => {
     loadAuditLogs();
   }, [actionFilter]);
+
+  // Real-time socket subscription — auto-refresh when admin actions are logged
+  useEffect(() => {
+    const unsub = subscribeAdminSocketEvent(socketEvents.DOMAIN.AUDIT_LOG_CREATED, () => {
+      loadAuditLogs();
+    });
+    return unsub;
+  }, []);
 
   const toggleExpand = (logId: string) => {
     setExpandedLogId(prev => prev === logId ? null : logId);
