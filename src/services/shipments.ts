@@ -7,10 +7,20 @@ export interface Shipment {
   carrier: string;
   status: 'pending' | 'packed' | 'in_transit' | 'out_for_delivery' | 'delivered' | 'failed' | 'returned';
   estimatedDelivery?: string;
+  estimatedDeliveryDate?: string;
   actualDelivery?: string;
+  actualDeliveryDate?: string;
   weight?: number;
   cost?: number;
-  shippingAddress: {street: string; city: string; state: string; zipCode: string; country: string};
+  shippingAddress: {
+    street?: string;
+    address?: string;
+    city: string;
+    state: string;
+    zipCode?: string;
+    postalCode?: string;
+    country: string;
+  };
   createdAt: string;
   updatedAt: string;
 }

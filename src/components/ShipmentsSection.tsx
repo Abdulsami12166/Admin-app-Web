@@ -92,12 +92,12 @@ export function ShipmentsSection({ onError, onSuccess }: ShipmentsProps) {
             <p><strong>Status</strong> {shipmentBadge(selectedShipment.status)}</p>
             <p><strong>Weight</strong> {selectedShipment.weight ?? '—'} kg</p>
             <p><strong>Cost</strong> ₹{selectedShipment.cost ?? '—'}</p>
-            <p><strong>Est. Delivery</strong> {selectedShipment.estimatedDelivery ? new Date(selectedShipment.estimatedDelivery).toLocaleDateString() : '—'}</p>
-            {selectedShipment.actualDelivery && <p><strong>Delivered</strong> {new Date(selectedShipment.actualDelivery).toLocaleDateString()}</p>}
+            <p><strong>Est. Delivery</strong> {(selectedShipment.estimatedDelivery || selectedShipment.estimatedDeliveryDate) ? new Date(selectedShipment.estimatedDelivery || selectedShipment.estimatedDeliveryDate || '').toLocaleDateString() : '—'}</p>
+            {(selectedShipment.actualDelivery || selectedShipment.actualDeliveryDate) && <p><strong>Delivered</strong> {new Date(selectedShipment.actualDelivery || selectedShipment.actualDeliveryDate || '').toLocaleDateString()}</p>}
             {selectedShipment.shippingAddress && (
               <p><strong>Address</strong>{' '}
-                {selectedShipment.shippingAddress.street}, {selectedShipment.shippingAddress.city},{' '}
-                {selectedShipment.shippingAddress.state} {selectedShipment.shippingAddress.zipCode}
+                {selectedShipment.shippingAddress.address || selectedShipment.shippingAddress.street}, {selectedShipment.shippingAddress.city},{' '}
+                {selectedShipment.shippingAddress.state} {selectedShipment.shippingAddress.postalCode || selectedShipment.shippingAddress.zipCode}
               </p>
             )}
           </div>
@@ -191,7 +191,7 @@ export function ShipmentsSection({ onError, onSuccess }: ShipmentsProps) {
                 <td style={{ fontWeight: 700, color: '#63d2ff' }}>{s.trackingNumber}</td>
                 <td>{s.carrier || '—'}</td>
                 <td>{shipmentBadge(s.status)}</td>
-                <td><small>{s.estimatedDelivery ? new Date(s.estimatedDelivery).toLocaleDateString() : '—'}</small></td>
+                <td><small>{(s.estimatedDelivery || s.estimatedDeliveryDate) ? new Date(s.estimatedDelivery || s.estimatedDeliveryDate || '').toLocaleDateString() : '—'}</small></td>
                 <td><small>{s.weight ?? '—'} kg</small></td>
                 <td><small>₹{s.cost ?? '—'}</small></td>
                 <td>

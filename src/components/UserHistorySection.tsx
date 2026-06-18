@@ -81,7 +81,7 @@ export default function UserHistorySection({
         adminApi.getUserLoginHistory(user._id || user.id || '', 1, pageSize),
         adminApi.getUserPayments(user._id || user.id || '', 1, pageSize),
       ]);
-      setActivities(a.data?.activities || []);
+      setActivities(Array.isArray(a.data) ? (a.data as any) : ((a.data as any)?.activities || (a.data as any)?.logs || []));
       setLoginHistory(l.data?.history || []);
       setPayments(p.data?.payments || []);
     } catch (e: any) {
@@ -96,7 +96,7 @@ export default function UserHistorySection({
     setLoading(true);
     try {
       const res = await adminApi.getUserActivities(selected._id || selected.id || '', page, pageSize);
-      setActivities(res.data?.activities || []);
+      setActivities(Array.isArray(res.data) ? (res.data as any) : ((res.data as any)?.activities || (res.data as any)?.logs || []));
       setActivityPage(page);
     } catch (e: any) {
       onError(String(e.message || e));

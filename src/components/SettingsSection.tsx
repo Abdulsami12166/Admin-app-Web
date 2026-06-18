@@ -81,7 +81,7 @@ export function SettingsSection({ onError, onSuccess }: SettingsProps) {
                       autoFocus
                     />
                   ) : (
-                    <small style={{ color: '#9fb6cb' }}>{JSON.stringify(setting.value).slice(0, 40)}</small>
+                    <small style={{ color: '#9fb6cb' }}>{(JSON.stringify(setting.value) || '').slice(0, 40)}</small>
                   )}
                 </td>
                 <td><small>{setting.type}</small></td>
@@ -97,7 +97,7 @@ export function SettingsSection({ onError, onSuccess }: SettingsProps) {
                       <button className="secondary" onClick={() => setEditingKey(null)}>Cancel</button>
                     </div>
                   ) : setting.isEditable ? (
-                    <button className="secondary" onClick={() => { setEditingKey(setting.key); setEditValue(String(setting.value)); }}>
+                    <button className="secondary" onClick={() => { setEditingKey(setting.key); setEditValue(setting.value !== undefined && setting.value !== null ? String(setting.value) : ''); }}>
                       Edit
                     </button>
                   ) : (
