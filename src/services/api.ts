@@ -1,7 +1,14 @@
 import type {Permission, RolePermissionMatrix} from './access';
 
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
-const PRODUCTION_ADMIN_API_BASE_URL = 'https://backend-admin-qe72.onrender.com/api/v1';
+const isLocal = typeof window !== 'undefined' && (
+  window.location.hostname === 'localhost' ||
+  window.location.hostname === '127.0.0.1'
+);
+
+const PRODUCTION_ADMIN_API_BASE_URL = isLocal
+  ? 'http://localhost:5001/api/v1'
+  : 'https://backend-admin-qe72.onrender.com/api/v1';
 
 const API_BASE_URL =
   trimTrailingSlash(
@@ -14,7 +21,7 @@ const SOCKET_BASE_URL =
     import.meta.env.VITE_ADMIN_SOCKET_URL
       || (import.meta.env.PROD
         ? API_BASE_URL.replace(/\/api\/v1$/, '')
-        : 'https://backend-admin-qe72.onrender.com')
+        : (isLocal ? 'http://localhost:5001' : 'https://backend-admin-qe72.onrender.com'))
   );
 
 export const ADMIN_TOKEN_KEY = 'ecommerce-admin-web-token';

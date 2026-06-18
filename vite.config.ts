@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 const adminApiProxyTarget =
-  process.env.VITE_ADMIN_API_PROXY_TARGET || 'https://backend-admin-qe72.onrender.com';
+  process.env.VITE_ADMIN_API_PROXY_TARGET || 'http://localhost:5001';
 
 export default defineConfig({
   plugins: [react()],
