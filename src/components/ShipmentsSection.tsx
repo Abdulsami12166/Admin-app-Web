@@ -128,6 +128,34 @@ export function ShipmentsSection({ onError, onSuccess }: ShipmentsProps) {
               </button>
             </div>
           </div>
+
+          {/* Shipment Items Section */}
+          <div className="section-box" style={{ gridColumn: '1 / -1' }}>
+            <h3 style={{ margin: '0 0 1rem', color: '#63d2ff', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Items in Shipment</h3>
+            {selectedShipment.order && typeof selectedShipment.order === 'object' && selectedShipment.order.items && selectedShipment.order.items.length > 0 ? (
+              <div style={{ display: 'grid', gap: '0.75rem' }}>
+                {selectedShipment.order.items.map((item, idx) => (
+                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '1rem', paddingBottom: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                    {item.image ? (
+                      <img src={item.image} alt={item.title} style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '8px' }} />
+                    ) : (
+                      <div style={{ width: '48px', height: '48px', borderRadius: '8px', background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', color: '#888' }}>No Img</div>
+                    )}
+                    <div style={{ flex: 1 }}>
+                      <strong style={{ display: 'block', fontSize: '0.95rem', color: '#eef4fb' }}>{item.title}</strong>
+                      <span style={{ fontSize: '0.82rem', color: '#9fb6cb' }}>Size: {item.selectedSize || 'N/A'} &nbsp;·&nbsp; Qty: {item.quantity}</span>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <span style={{ display: 'block', fontSize: '0.95rem', fontWeight: '800', color: '#43d17a' }}>₹{item.price * item.quantity}</span>
+                      <span style={{ fontSize: '0.78rem', color: '#9fb6cb' }}>₹{item.price} each</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="state-empty" style={{ padding: '1.5rem 0' }}>No products found in this shipment's order.</div>
+            )}
+          </div>
         </div>
 
         <section className="panel">

@@ -1,8 +1,25 @@
 import { adminApi } from './api';
 
+export interface OrderItem {
+  product?: string | {_id: string; title?: string; images?: string[]; price?: number};
+  title: string;
+  quantity: number;
+  price: number;
+  selectedSize?: string;
+  image?: string;
+}
+
 export interface Shipment {
   _id: string;
-  order: string;
+  order: string | {
+    _id: string;
+    items?: OrderItem[];
+    totalAmount?: number;
+    subtotal?: number;
+    orderStatus?: string;
+    razorpayOrderId?: string;
+    user?: {name?: string; email?: string; phone?: string};
+  };
   trackingNumber: string;
   carrier: string;
   status: 'pending' | 'packed' | 'in_transit' | 'out_for_delivery' | 'delivered' | 'failed' | 'returned';
@@ -13,6 +30,8 @@ export interface Shipment {
   weight?: number;
   cost?: number;
   shippingAddress: {
+    name?: string;
+    phone?: string;
     street?: string;
     address?: string;
     city: string;

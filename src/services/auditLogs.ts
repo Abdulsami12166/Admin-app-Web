@@ -2,7 +2,7 @@ import { adminApi } from './api';
 
 export interface AuditLog {
   _id: string;
-  actor: string;
+  actor: string | { _id: string; name?: string; email?: string };
   action: string;
   entityType: string;
   entityId: string;
@@ -11,6 +11,7 @@ export interface AuditLog {
   severity: 'info' | 'warning' | 'critical';
   ipAddress?: string;
   userAgent?: string;
+  resourcePath?: string;
   location?: {country: string; city: string; region: string};
   failureReason?: string;
   duration?: number;

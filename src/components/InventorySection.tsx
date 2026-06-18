@@ -28,6 +28,7 @@ export function InventorySection({ onError, onSuccess }: InventoryProps) {
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [loading, setLoading] = useState(false);
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [updateForm, setUpdateForm] = useState<{ type: UpdateType; quantity: number; reason: string }>({
     type: 'in',
     quantity: 0,
@@ -164,6 +165,16 @@ export function InventorySection({ onError, onSuccess }: InventoryProps) {
     );
   }
 
+  const categories = Array.from(new Set(
+    inventory
+      .map(item => typeof item.product === 'object' && item.product ? item.product.category : null)
+      .filter(Boolean)
+  )) as string[];
+
+  const filteredInventory = selectedCategory
+    ? inventory.filter(item => typeof item.product === 'object' && item.product && item.product.category === selectedCategory)
+    : inventory;
+
   return (
     <div style={{ padding: '1.5rem' }}>
       <h2 style={{ margin: '0 0 1.25rem' }}>Inventory Management</h2>
@@ -176,56 +187,119 @@ export function InventorySection({ onError, onSuccess }: InventoryProps) {
         <article className="stat"><strong style={{ color: '#ff8b8b' }}>{stats?.outOfStockCount ?? 0}</strong><span>Out of Stock</span></article>
       </div>
 
-      <div className="section-filters">
-        <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', color: '#dbe8f5', fontWeight: 700, cursor: 'pointer' }}>
-          <input
-            type="checkbox"
-            checked={showLowStockOnly}
-            onChange={e => setShowLowStockOnly(e.target.checked)}
-            style={{ width: 'auto' }}
-          />
-          Show Low Stock Only
-        </label>
-        <button className="secondary" onClick={loadInventory} style={{ marginLeft: 'auto' }}>
-          Refresh
-        </button>
-      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: '1.5rem', alignItems: 'start' }}>
+        {/* Category List Sidebar */}
+        <div className="section-box" style={{ padding: '1.25rem', marginBottom: 0 }}>
+          <h3 style={{ margin: '0 0 1rem', fontSize: '0.85rem', color: '#63d2ff', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 800 }}>Categories</h3>
+          <div style={{ display: 'grid', gap: '0.55rem' }}>
+            <button
+              className={selectedCategory === null ? 'active' : 'secondary'}
+              onClick={() => setSelectedCategory(null)}
+              style={{
+                width: '100%',
+                textAlign: 'left',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '0.65rem 0.95rem',
+                borderRadius: '10px',
+                fontSize: '0.88rem',
+                border: '1px solid #28425f',
+                cursor: 'pointer',
+                ...(selectedCategory === null ? { background: '#63d2ff', color: '#06101d', fontWeight: 800 } : { background: '#102033', color: '#9fb6cb' })
+              }}
+            >
+              <span>All Categories</span>
+              <span className="badge badge-neutral" style={{ padding: '0.1rem 0.4rem', fontSize: '0.7rem' }}>
+                {inventory.length}
+              </span>
+            </button>
+            {categories.map(cat => {
+              const count = inventory.filter(item => typeof item.product === 'object' && item.product && item.product.category === cat).length;
+              const isSelected = selectedCategory === cat;
+              return (
+                <button
+                  key={cat}
+                  className={isSelected ? 'active' : 'secondary'}
+                  onClick={() => setSelectedCategory(cat)}
+                  style={{
+                    width: '100%',
+                    textAlign: 'left',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '0.65rem 0.95rem',
+                    borderRadius: '10px',
+                    fontSize: '0.88rem',
+                    border: '1px solid #28425f',
+                    cursor: 'pointer',
+                    ...(isSelected ? { background: '#63d2ff', color: '#06101d', fontWeight: 800 } : { background: '#102033', color: '#9fb6cb' })
+                  }}
+                >
+                  <span>{cat}</span>
+                  <span className="badge badge-neutral" style={{ padding: '0.1rem 0.4rem', fontSize: '0.7rem' }}>
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
-      <div className="table-card">
-        <table>
-          <thead>
-            <tr>
-              <th>Product</th>
-              <th>Current</th>
-              <th>Reserved</th>
-              <th>Available</th>
-              <th>Reorder Level</th>
-              <th>Last Restocked</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {inventory.map(item => (
-              <tr key={item._id}>
-                <td style={{ fontWeight: 700 }}>{productName(item)}</td>
-                <td>{item.currentStock}</td>
-                <td>{item.reservedStock ?? 0}</td>
-                <td style={{ color: item.availableStock === 0 ? '#ff8b8b' : '#43d17a', fontWeight: 700 }}>{item.availableStock}</td>
-                <td>{item.reorderLevel}</td>
-                <td><small>{item.lastRestockedAt ? new Date(item.lastRestockedAt).toLocaleDateString() : '—'}</small></td>
-                <td>{stockBadge(item)}</td>
-                <td>
-                  <button className="secondary" onClick={() => loadItemDetail(item)}>
-                    Manage
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {!loading && !inventory.length && <div className="state-empty">No inventory records found. Products will appear here once created.</div>}
-        {loading && <div className="state-loading">Loading inventory...</div>}
+        {/* Inventory List View */}
+        <div>
+          <div className="section-filters" style={{ marginBottom: '1rem' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', color: '#dbe8f5', fontWeight: 700, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={showLowStockOnly}
+                onChange={e => setShowLowStockOnly(e.target.checked)}
+                style={{ width: 'auto' }}
+              />
+              Show Low Stock Only
+            </label>
+            <button className="secondary" onClick={loadInventory} style={{ marginLeft: 'auto' }}>
+              Refresh
+            </button>
+          </div>
+
+          <div className="table-card">
+            <table>
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Current</th>
+                  <th>Reserved</th>
+                  <th>Available</th>
+                  <th>Reorder Level</th>
+                  <th>Last Restocked</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredInventory.map(item => (
+                  <tr key={item._id}>
+                    <td style={{ fontWeight: 700 }}>{productName(item)}</td>
+                    <td>{item.currentStock}</td>
+                    <td>{item.reservedStock ?? 0}</td>
+                    <td style={{ color: item.availableStock === 0 ? '#ff8b8b' : '#43d17a', fontWeight: 700 }}>{item.availableStock}</td>
+                    <td>{item.reorderLevel}</td>
+                    <td><small>{item.lastRestockedAt ? new Date(item.lastRestockedAt).toLocaleDateString() : '—'}</small></td>
+                    <td>{stockBadge(item)}</td>
+                    <td>
+                      <button className="secondary" onClick={() => loadItemDetail(item)}>
+                        Manage
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {!loading && !filteredInventory.length && <div className="state-empty">No inventory records found for the selected category.</div>}
+            {loading && <div className="state-loading">Loading inventory...</div>}
+          </div>
+        </div>
       </div>
     </div>
   );
