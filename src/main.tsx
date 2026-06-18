@@ -1,7 +1,9 @@
 import React from 'react';
 import {createRoot} from 'react-dom/client';
 import './styles/admin.css';
+import './styles/rootFix.css';
 import {App} from './App';
+
 import {ToastProvider, ToastContainer} from './services/toast';
 
 createRoot(document.getElementById('root')!).render(

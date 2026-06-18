@@ -124,9 +124,9 @@ export function CustomersSection({ onError, onSuccess }: CustomersProps) {
 
   if (selectedCustomer) {
     const statusLabel = selectedCustomer.status || ((selectedCustomer as any).blocked ? 'blocked' : 'active');
-    const orders = selectedCustomer.orders || [];
-    const addresses = selectedCustomer.addresses || [];
-    const wishlist = selectedCustomer.wishlist || [];
+    const orders = (selectedCustomer.orders || []).filter(Boolean);
+    const addresses = (selectedCustomer.addresses || []).filter(Boolean);
+    const wishlist = (selectedCustomer.wishlist || []).filter(Boolean);
 
     return (
       <div style={{ padding: 20, display: 'grid', gap: 16 }}>

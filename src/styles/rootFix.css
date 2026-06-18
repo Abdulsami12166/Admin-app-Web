@@ -1,0 +1,23 @@
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: #07111f;
+  color: #eef4fb;
+}
+
+body {
+  min-height: 100vh;
+}
+
+/* prevent accidental white text/backdrop in empty renders */
+.admin-shell,
+.login-page,
+.workspace,
+.panel,
+.table-card {
+  background: #07111f;
+  color: #eef4fb;
+}
+

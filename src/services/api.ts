@@ -1,7 +1,7 @@
 import type {Permission, RolePermissionMatrix} from './access';
 
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
-const PRODUCTION_ADMIN_API_BASE_URL = 'https://backend-admin-qe72.onrender.com/api/v1';
+const PRODUCTION_ADMIN_API_BASE_URL = 'https://ecommerce-app-backend-1kn0.onrender.com/api/v1';
 
 const API_BASE_URL =
   trimTrailingSlash(
@@ -304,6 +304,25 @@ export const adminApi = Object.assign(adminApiFunction, {
     apiRequest(`/admin/refunds/${refundId}/process`, {method: 'POST', body, auth: true}),
   completeRefund: (refundId: string) => apiRequest(`/admin/refunds/${refundId}/complete`, {method: 'POST', auth: true}),
   getRefundStats: () => apiRequest<{data: any}>(`/admin/refunds/stats`, {auth: true}),
+  getAdminProfile: (adminId: string) =>
+    apiRequest<{
+      data: {
+        admin: AdminUser;
+        permissions: string[];
+        loginHistory: any[];
+        logoutHistory: any[];
+        forceLogoutEvents: any[];
+        blockHistory: any[];
+        unblockHistory: any[];
+        permissionChanges: any[];
+        productActions: any[];
+        orderActions: any[];
+        inventoryActions: any[];
+        ticketActions: any[];
+        activityTimeline: any[];
+        auditLogs: any[];
+      }
+    }>(`/admin/admins/${adminId}/profile`, {auth: true}),
 });
 
 export function getSocketBaseUrl() {
