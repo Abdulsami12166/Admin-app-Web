@@ -139,7 +139,7 @@ class ApiError extends Error {
   }
 }
 
-async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
+async function apiRequest<T = any>(path: string, options: RequestOptions = {}): Promise<{success?: boolean; message?: string} & T> {
   const url = new URL(`${API_BASE_URL}${path}`, window.location.origin);
   if (options.params) {
     Object.entries(options.params).forEach(([key, value]) => {
@@ -197,7 +197,7 @@ async function apiRequest<T>(path: string, options: RequestOptions = {}): Promis
     throw new ApiError('Server returned an empty response. Check the admin API URL.', response.status);
   }
 
-  return payload as T;
+  return payload as {success?: boolean; message?: string} & T;
 }
 
 export async function loginAdmin(email: string, password: string) {

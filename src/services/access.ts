@@ -251,6 +251,8 @@ export function normalizeRole(role?: string): AdminRole {
     || value === 'product-manager'
     || value === 'inventory-manager'
     || value === 'support'
+    || value === 'finance-manager'
+    || value === 'customer-service'
   ) {
     return value;
   }

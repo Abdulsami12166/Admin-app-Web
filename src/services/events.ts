@@ -1,3 +1,6 @@
+/**
+ * Socket event names — must stay in sync with backend/src/shared/events/socketEvents.js
+ */
 export const socketEvents = {
   ADMIN_SUBSCRIBE: 'subscribe-admin',
   ROOMS: {
@@ -10,16 +13,20 @@ export const socketEvents = {
     ORDER_CREATED: 'order.created',
     ORDER_UPDATED: 'order.updated',
     PRODUCT_CREATED: 'product.created',
+    PRODUCT_UPDATED: 'product.updated',
     ADMIN_ACTIVITY_CREATED: 'admin.activity.created',
     ADMIN_FORCE_LOGOUT: 'admin.user.force_logout',
-    REFUND_CREATED: 'support.refund.created',
-    REFUND_UPDATED: 'support.refund.updated',
-    REFUND_LEDGER_UPDATED: 'refund.ledger.updated',
+    FEATURE_TOGGLE_UPDATED: 'admin.feature_toggle.updated',
     TICKET_CREATED: 'support.ticket.created',
     TICKET_UPDATED: 'support.ticket.updated',
     TICKET_MESSAGE_ADDED: 'support.ticket.message_added',
     RETURN_CREATED: 'support.return.created',
     RETURN_UPDATED: 'support.return.updated',
+    REFUND_CREATED: 'support.refund.created',
+    REFUND_UPDATED: 'support.refund.updated',
+    REFUND_LEDGER_UPDATED: 'support.refund.ledger_updated',
+    REPLACEMENT_CREATED: 'support.replacement.created',
+    REPLACEMENT_UPDATED: 'support.replacement.updated',
   },
   LEGACY: {
     USER_LOGIN: 'user-login',

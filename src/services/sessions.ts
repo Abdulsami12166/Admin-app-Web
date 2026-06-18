@@ -1,45 +1,52 @@
 import { adminApi } from './api';
 
 export interface AdminSession {
-  id: string;
-  adminId: string;
-  adminEmail: string;
-  ipAddress: string;
-  loginTime: string;
-  lastActivityTime: string;
-  status: 'active' | 'terminated';
+  _id: string;
+  adminUser?: { _id?: string; name?: string; email?: string; role?: string };
+  adminEmail?: string;
+  sessionToken?: string;
+  ipAddress?: string;
+  userAgent?: string;
+  loginAt?: string;
+  lastActivityAt?: string;
+  logoutAt?: string;
+  isActive?: boolean;
+  expiresAt?: string;
+}
+
+export interface SessionStats {
+  totalSessions: number;
+  activeSessions: number;
+  terminatedSessions: number;
+  sessionsByAdmin: Array<{ _id: string; total: number; active: number; terminated: number }>;
 }
 
 export const sessionsApi = {
-  getActiveSessions: async () => {
-    return adminApi.get('/sessions');
+  getActiveSessions: (page = 1, limit = 25, status?: string, search?: string) => {
+    let url = `/admin/sessions?page=${page}&limit=${limit}`;
+    if (status) url += `&status=${status}`;
+    if (search) url += `&search=${encodeURIComponent(search)}`;
+    return adminApi(url, 'GET');
   },
 
-  getAdminSessions: async (adminId: string) => {
-    return adminApi.get(`/sessions/admin/${adminId}`);
-  },
+  getAdminSessions: (adminId: string, page = 1, limit = 25) =>
+    adminApi(`/admin/sessions/admin/${adminId}?page=${page}&limit=${limit}`, 'GET'),
 
-  getSessionDetails: async (sessionId: string) => {
-    return adminApi.get(`/sessions/${sessionId}`);
-  },
+  getSessionDetails: (sessionId: string) =>
+    adminApi(`/admin/sessions/${sessionId}`, 'GET'),
 
-  createSession: async (data: Partial<AdminSession>) => {
-    return adminApi.post('/sessions', data);
-  },
+  createSession: (data: Partial<AdminSession>) =>
+    adminApi('/admin/sessions', 'POST', data),
 
-  forceLogout: async (sessionId: string) => {
-    return adminApi.post(`/sessions/${sessionId}/logout`);
-  },
+  forceLogout: (sessionId: string) =>
+    adminApi(`/admin/sessions/${sessionId}/logout`, 'POST'),
 
-  forceLogoutAllForAdmin: async (adminId: string) => {
-    return adminApi.post(`/sessions/admin/${adminId}/logout-all`);
-  },
+  forceLogoutAllForAdmin: (adminId: string) =>
+    adminApi(`/admin/sessions/admin/${adminId}/logout-all`, 'POST'),
 
-  updateSessionActivity: async (sessionId: string) => {
-    return adminApi.patch(`/sessions/${sessionId}/activity`);
-  },
+  updateSessionActivity: (sessionId: string) =>
+    adminApi(`/admin/sessions/${sessionId}/activity`, 'PATCH'),
 
-  getSessionStats: async () => {
-    return adminApi.get('/sessions/stats/overview');
-  },
+  getSessionStats: () =>
+    adminApi('/admin/sessions/stats/overview', 'GET'),
 };

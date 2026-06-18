@@ -66,7 +66,7 @@ export function connectAdminSocket(onEvent: (title: string, detail: string) => v
       `Refund ${payload?.refund?._id || payload?.refundId || 'updated'} status: ${payload?.refund?.status || payload?.refundStatus || payload?.status || 'updated'}`,
     ),
   );
-  socket.on(socketEvents.DOMAIN.REFUND_LEDGER_UPDATED, payload =>
+  socket.on(socketEvents.DOMAIN.REFUND_LEDGER_UPDATED, (payload: any) =>
     onEvent(
       'Refund ledger',
       `Refund ledger ${payload?.ledgerId || payload?.refundId || ''} ${payload?.status ? `is ${payload.status}` : 'updated'}`,

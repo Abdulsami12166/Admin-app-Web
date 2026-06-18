@@ -2,6 +2,7 @@
  * Enhanced admin API wrapper with unified error handling and feedback
  */
 
+import * as React from 'react';
 import { useToast } from './toast';
 import { ErrorModal, LoadingOverlay, SuccessModal } from '../components/Dialogs';
 

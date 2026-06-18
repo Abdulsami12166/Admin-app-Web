@@ -1,18 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { adminApi } from '../services/api';
-
-interface UserSession {
-  _id: string;
-  adminUser?: { _id?: string; name?: string; email?: string; role?: string };
-  adminEmail?: string;
-  ipAddress?: string;
-  userAgent?: string;
-  loginAt?: string;
-  lastActivityAt?: string;
-  logoutAt?: string;
-  isActive?: boolean;
-  sessionToken?: string;
-}
+import { sessionsApi, type AdminSession } from '../services/sessions';
 
 interface SessionManagementSectionProps {
   onError: (msg: string) => void;
@@ -53,138 +40,97 @@ const DS = {
   } as React.CSSProperties,
 };
 
-function parseSessions(activities: any[]): UserSession[] {
-  return activities
-    .filter(a => {
-      const action = (a.action || '').toLowerCase();
-      return action.includes('login') || action.includes('logout') || action.includes('session');
-    })
-    .map(a => {
-      let details: any = {};
-      if (typeof a.details === 'string') {
-        try { details = JSON.parse(a.details); } catch { details = {}; }
-      } else if (typeof a.details === 'object' && a.details) {
-        details = a.details;
-      }
-      return {
-        _id: a._id || String(Math.random()),
-        userId: a.userId || a.user?._id,
-        user: a.user,
-        email: a.email || a.user?.email || details?.email,
-        name: a.name || a.user?.name || details?.name,
-        ipAddress: a.ipAddress || details?.ipAddress || '—',
-        userAgent: a.userAgent || details?.userAgent || '—',
-        loginAt: a.action?.toLowerCase().includes('login') ? (a.createdAt || a.timestamp) : undefined,
-        lastActivityAt: a.updatedAt || a.createdAt,
-        logoutAt: a.action?.toLowerCase().includes('logout') ? (a.createdAt || a.timestamp) : undefined,
-        isActive: a.action?.toLowerCase().includes('login') && !a.action?.toLowerCase().includes('logout'),
-        action: a.action,
-        createdAt: a.createdAt || a.timestamp,
-        details: a.details,
-      };
-    });
+function uaShort(ua?: string): string {
+  if (!ua) return '—';
+  // Extract browser name and OS from full user-agent string
+  if (ua.includes('Chrome')) return ua.includes('Mobile') ? 'Chrome Mobile' : 'Chrome';
+  if (ua.includes('Firefox')) return 'Firefox';
+  if (ua.includes('Safari') && !ua.includes('Chrome')) return 'Safari';
+  if (ua.includes('Edge')) return 'Edge';
+  return ua.slice(0, 40);
 }
 
 export function SessionManagementSection({ onError, onSuccess }: SessionManagementSectionProps) {
-  const [sessions, setSessions] = useState<UserSession[]>([]);
-  const [allUsers, setAllUsers] = useState<any[]>([]);
-  const [selectedUser, setSelectedUser] = useState<any | null>(null);
-  const [userSessions, setUserSessions] = useState<UserSession[]>([]);
-  const [stats, setStats] = useState({ active: 0, total: 0, uniqueUsers: 0 });
+  const [sessions, setSessions] = useState<AdminSession[]>([]);
+  const [stats, setStats] = useState({ activeSessions: 0, totalSessions: 0, terminatedSessions: 0 });
   const [loading, setLoading] = useState(false);
-  const [detailLoading, setDetailLoading] = useState(false);
   const [filter, setFilter] = useState<'all' | 'active' | 'terminated'>('all');
-
-  const ADMIN_ROLES = new Set(['super-admin', 'admin', 'product-manager', 'inventory-manager', 'support', 'finance-manager', 'customer-service']);
+  const [search, setSearch] = useState('');
 
   const loadSessions = async () => {
     setLoading(true);
     try {
       const [sessionsRes, statsRes] = await Promise.allSettled([
-        adminApi('/admin/sessions', 'GET'),
-        adminApi('/admin/sessions/stats', 'GET')
+        sessionsApi.getActiveSessions(1, 100, filter === 'all' ? undefined : filter),
+        sessionsApi.getSessionStats(),
       ]);
 
       if (sessionsRes.status === 'fulfilled') {
-        const rawSessions: any[] = sessionsRes.value.data || [];
+        const rawSessions: AdminSession[] = sessionsRes.value?.data || [];
         setSessions(rawSessions);
+      } else {
+        onError(`Failed to load sessions: ${sessionsRes.reason?.message || sessionsRes.reason}`);
       }
-      
+
       if (statsRes.status === 'fulfilled') {
+        const d = statsRes.value?.data || {};
         setStats({
-          active: statsRes.value.data?.activeSessions || 0,
-          total: statsRes.value.data?.totalSessions || 0,
-          uniqueUsers: statsRes.value.data?.sessionsByAdmin?.length || 0,
+          activeSessions: d.activeSessions ?? 0,
+          totalSessions: d.totalSessions ?? 0,
+          terminatedSessions: d.terminatedSessions ?? 0,
         });
       }
-    } catch (err) {
-      onError(`Failed to load sessions: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setLoading(false);
     }
   };
 
-  const loadUserLoginHistory = async (user: any) => {
-    setSelectedUser(user);
-    setDetailLoading(true);
-    try {
-      const userId = user._id || user.id;
-      const [actRes, loginRes] = await Promise.allSettled([
-        adminApi.getUserActivities(userId, 1, 50),
-        adminApi.getUserLoginHistory(userId, 1, 50),
-      ]);
-      const activities = actRes.status === 'fulfilled' ? actRes.value.data?.activities || [] : [];
-      const logins = loginRes.status === 'fulfilled' ? loginRes.value.data?.history || [] : [];
-      const combined = [...activities, ...logins].sort(
-        (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
-      );
-      setUserSessions(combined.map((a: any) => {
-        let details: any = {};
-        if (typeof a.details === 'string') { try { details = JSON.parse(a.details); } catch { details = {}; } }
-        else if (typeof a.details === 'object' && a.details) details = a.details;
-        return {
-          _id: a._id || String(Math.random()),
-          action: a.action,
-          ipAddress: a.ipAddress || details?.ipAddress || '—',
-          userAgent: a.userAgent || details?.userAgent || '—',
-          isActive: (a.action || '').toLowerCase().includes('login') && !(a.action || '').toLowerCase().includes('logout'),
-          createdAt: a.createdAt || a.timestamp,
-        };
-      }));
-    } catch (err) {
-      onError(`Failed to load user sessions: ${err instanceof Error ? err.message : String(err)}`);
-    } finally {
-      setDetailLoading(false);
-    }
-  };
-
-  const handleForceLogout = async (sessionToken: string, adminEmail: string) => {
-    if (!window.confirm(`Force logout admin ${adminEmail}? This session will be terminated.`)) return;
+  const handleForceLogout = async (session: AdminSession) => {
+    const label = session.adminUser?.name || session.adminEmail || session._id;
+    if (!window.confirm(`Force logout "${label}"? Their session will be terminated immediately.`)) return;
     setLoading(true);
     try {
-      await adminApi(`/admin/sessions/${sessionToken}/force-logout`, 'POST');
-      onSuccess(`Session for ${adminEmail} has been terminated`);
+      // Backend route: POST /sessions/:sessionId/logout
+      // The controller looks up by sessionToken, so pass the sessionToken as the URL param
+      const id = session.sessionToken || session._id;
+      await sessionsApi.forceLogout(id);
+      onSuccess(`Session for ${label} terminated`);
       loadSessions();
-    } catch (err) {
-      onError(`Failed to terminate session: ${err instanceof Error ? err.message : String(err)}`);
+    } catch (err: any) {
+      onError(`Failed to terminate session: ${err?.message || String(err)}`);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadSessions();
-  }, []);
+  const handleForceLogoutAll = async (adminId: string, label: string) => {
+    if (!window.confirm(`Terminate ALL sessions for "${label}"?`)) return;
+    setLoading(true);
+    try {
+      await sessionsApi.forceLogoutAllForAdmin(adminId);
+      onSuccess(`All sessions for ${label} terminated`);
+      loadSessions();
+    } catch (err: any) {
+      onError(`Failed to terminate sessions: ${err?.message || String(err)}`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const filteredSessions = sessions.filter(s => {
-    if (filter === 'all') return true;
-    if (filter === 'active') return s.isActive;
-    return !s.isActive;
+  useEffect(() => { loadSessions(); }, [filter]);
+
+  // Client-side search filter
+  const filtered = sessions.filter(s => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return (
+      (s.adminUser?.name || '').toLowerCase().includes(q) ||
+      (s.adminUser?.email || '').toLowerCase().includes(q) ||
+      (s.adminEmail || '').toLowerCase().includes(q) ||
+      (s.ipAddress || '').toLowerCase().includes(q)
+    );
   });
 
-
-
-  // ─── Users list with session overview ─────────────────────────────────
   return (
     <div style={{ padding: '1.5rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', marginBottom: '1.5rem' }}>
@@ -206,27 +152,37 @@ export function SessionManagementSection({ onError, onSuccess }: SessionManageme
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
         <div style={DS.stat}>
-          <strong style={{ display: 'block', fontSize: '2rem', color: '#63d2ff', lineHeight: 1 }}>{stats.total}</strong>
-          <span style={{ display: 'block', marginTop: '0.5rem', color: '#9fb6cb', fontWeight: 700, fontSize: '0.82rem' }}>Login Events</span>
+          <strong style={{ display: 'block', fontSize: '2rem', color: '#63d2ff', lineHeight: 1 }}>{stats.totalSessions}</strong>
+          <span style={{ display: 'block', marginTop: '0.5rem', color: '#9fb6cb', fontWeight: 700, fontSize: '0.82rem' }}>Total Login Events</span>
         </div>
         <div style={DS.stat}>
-          <strong style={{ display: 'block', fontSize: '2rem', color: '#43d17a', lineHeight: 1 }}>{allUsers.filter(u => !u.blocked).length}</strong>
-          <span style={{ display: 'block', marginTop: '0.5rem', color: '#9fb6cb', fontWeight: 700, fontSize: '0.82rem' }}>Active Users</span>
+          <strong style={{ display: 'block', fontSize: '2rem', color: '#43d17a', lineHeight: 1 }}>{stats.activeSessions}</strong>
+          <span style={{ display: 'block', marginTop: '0.5rem', color: '#9fb6cb', fontWeight: 700, fontSize: '0.82rem' }}>Active Sessions</span>
         </div>
         <div style={DS.stat}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <select
-              value={filter}
-              onChange={e => setFilter(e.target.value as any)}
-              style={{ width: '100%', padding: '8px', border: '1px solid #28425f', borderRadius: '12px', background: '#06101d', color: '#eef4fb', fontSize: 12 }}
-            >
-              <option value="all">All sessions</option>
-              <option value="active">Active only</option>
-              <option value="terminated">Terminated only</option>
-            </select>
-          </div>
-          <span style={{ display: 'block', marginTop: '0.4rem', color: '#9fb6cb', fontWeight: 700, fontSize: '0.82rem' }}>Filter</span>
+          <strong style={{ display: 'block', fontSize: '2rem', color: '#ff8b8b', lineHeight: 1 }}>{stats.terminatedSessions}</strong>
+          <span style={{ display: 'block', marginTop: '0.5rem', color: '#9fb6cb', fontWeight: 700, fontSize: '0.82rem' }}>Terminated</span>
         </div>
+      </div>
+
+      {/* Filters */}
+      <div className="section-filters" style={{ marginBottom: '1rem' }}>
+        <select
+          value={filter}
+          onChange={e => setFilter(e.target.value as any)}
+          style={{ width: 160 }}
+        >
+          <option value="all">All Sessions</option>
+          <option value="active">Active Only</option>
+          <option value="terminated">Terminated Only</option>
+        </select>
+        <input
+          type="text"
+          placeholder="Search admin or IP…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          style={{ width: 220 }}
+        />
       </div>
 
       {/* Sessions table */}
@@ -236,8 +192,9 @@ export function SessionManagementSection({ onError, onSuccess }: SessionManageme
             <thead>
               <tr>
                 <th style={DS.th}>Admin User</th>
+                <th style={DS.th}>Role</th>
                 <th style={DS.th}>IP Address</th>
-                <th style={DS.th}>Browser/Device</th>
+                <th style={DS.th}>Browser</th>
                 <th style={DS.th}>Login Time</th>
                 <th style={DS.th}>Last Activity</th>
                 <th style={DS.th}>Status</th>
@@ -245,30 +202,70 @@ export function SessionManagementSection({ onError, onSuccess }: SessionManageme
               </tr>
             </thead>
             <tbody>
-              {filteredSessions.map(session => (
-                <tr key={session._id} style={{ cursor: 'pointer' }}>
+              {filtered.map(session => (
+                <tr key={session._id} style={{ cursor: 'default' }}>
                   <td style={DS.td}>
-                    <strong style={{ color: '#eef4fb' }}>{session.adminUser?.name || session.adminEmail}</strong>
-                    <div style={{ color: '#9fb6cb', fontSize: 11 }}>{session.adminUser?.role}</div>
+                    <strong style={{ color: '#eef4fb' }}>
+                      {session.adminUser?.name || session.adminEmail || '—'}
+                    </strong>
+                    {session.adminUser?.email && (
+                      <div style={{ color: '#9fb6cb', fontSize: 11 }}>{session.adminUser.email}</div>
+                    )}
                   </td>
-                  <td style={DS.td}><span style={{ color: '#9fb6cb', fontFamily: 'monospace', fontSize: 12 }}>{session.ipAddress}</span></td>
-                  <td style={DS.td}><span title={session.userAgent} style={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', display: 'inline-block', color: '#9fb6cb', fontSize: 12 }}>{session.userAgent}</span></td>
-                  <td style={DS.td}><span style={{ color: '#9fb6cb', fontSize: 12 }}>{session.loginAt ? new Date(session.loginAt).toLocaleString() : '—'}</span></td>
-                  <td style={DS.td}><span style={{ color: '#9fb6cb', fontSize: 12 }}>{session.lastActivityAt ? new Date(session.lastActivityAt).toLocaleString() : '—'}</span></td>
                   <td style={DS.td}>
-                    <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: !session.isActive ? 'rgba(255,139,139,0.15)' : 'rgba(67,209,122,0.15)', color: !session.isActive ? '#ff8b8b' : '#43d17a' }}>
-                      {!session.isActive ? 'Terminated' : 'Active'}
+                    <span style={{ color: '#63d2ff', fontSize: 11, fontWeight: 700, textTransform: 'capitalize' }}>
+                      {session.adminUser?.role || '—'}
                     </span>
                   </td>
                   <td style={DS.td}>
-                    <div style={{ display: 'flex', gap: 6 }}>
+                    <span style={{ color: '#9fb6cb', fontFamily: 'monospace', fontSize: 12 }}>{session.ipAddress || '—'}</span>
+                  </td>
+                  <td style={DS.td}>
+                    <span title={session.userAgent} style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', display: 'inline-block', color: '#9fb6cb', fontSize: 12 }}>
+                      {uaShort(session.userAgent)}
+                    </span>
+                  </td>
+                  <td style={DS.td}>
+                    <span style={{ color: '#9fb6cb', fontSize: 12 }}>
+                      {session.loginAt ? new Date(session.loginAt).toLocaleString() : '—'}
+                    </span>
+                  </td>
+                  <td style={DS.td}>
+                    <span style={{ color: '#9fb6cb', fontSize: 12 }}>
+                      {session.lastActivityAt ? new Date(session.lastActivityAt).toLocaleString() : '—'}
+                    </span>
+                  </td>
+                  <td style={DS.td}>
+                    <span style={{
+                      display: 'inline-block',
+                      padding: '3px 10px',
+                      borderRadius: 999,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      background: session.isActive ? 'rgba(67,209,122,0.15)' : 'rgba(255,139,139,0.15)',
+                      color: session.isActive ? '#43d17a' : '#ff8b8b',
+                    }}>
+                      {session.isActive ? 'Active' : 'Terminated'}
+                    </span>
+                  </td>
+                  <td style={DS.td}>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                       {session.isActive && (
                         <button
-                          onClick={() => handleForceLogout(session.sessionToken!, session.adminEmail!)}
+                          onClick={() => handleForceLogout(session)}
                           disabled={loading}
-                          style={{ padding: '5px 10px', background: 'rgba(255,139,139,0.15)', color: '#ff8b8b', border: '1px solid rgba(255,139,139,0.2)', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 11 }}
+                          style={{ padding: '5px 10px', background: 'rgba(255,139,139,0.15)', color: '#ff8b8b', border: '1px solid rgba(255,139,139,0.3)', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 11 }}
                         >
                           Force Logout
+                        </button>
+                      )}
+                      {session.isActive && session.adminUser?._id && (
+                        <button
+                          onClick={() => handleForceLogoutAll(session.adminUser!._id!, session.adminUser?.name || session.adminEmail || '')}
+                          disabled={loading}
+                          style={{ padding: '5px 10px', background: 'rgba(255,139,139,0.08)', color: '#ff8b8b', border: '1px solid rgba(255,139,139,0.15)', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 11 }}
+                        >
+                          Logout All
                         </button>
                       )}
                     </div>
@@ -277,8 +274,10 @@ export function SessionManagementSection({ onError, onSuccess }: SessionManageme
               ))}
             </tbody>
           </table>
-          {!loading && filteredSessions.length === 0 && (
-            <div style={{ padding: '2.5rem', textAlign: 'center', color: '#9fb6cb' }}>No sessions found.</div>
+          {!loading && filtered.length === 0 && (
+            <div style={{ padding: '2.5rem', textAlign: 'center', color: '#9fb6cb' }}>
+              {sessions.length > 0 ? 'No sessions match your search.' : 'No sessions found.'}
+            </div>
           )}
           {loading && (
             <div style={{ padding: '2.5rem', textAlign: 'center', color: '#63d2ff', fontWeight: 700 }}>Loading sessions…</div>

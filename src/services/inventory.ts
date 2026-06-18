@@ -2,15 +2,17 @@ import { adminApi } from './api';
 
 export interface InventoryItem {
   _id: string;
-  product: string;
+  product: string | { _id: string; title?: string; name?: string; sku?: string; category?: string; price?: number };
   currentStock: number;
   reservedStock: number;
   availableStock: number;
   reorderLevel: number;
   reorderQuantity: number;
-  warehouseLocation?: string;
-  lastRestockDate?: string;
+  location?: string;        // warehouse location
+  binLocation?: string;     // specific bin/shelf
+  lastRestockedAt?: string; // ISO date of last restock
   lowStockAlert: boolean;
+  outOfStockAlert?: boolean;
 }
 
 export interface StockMovement {
@@ -25,7 +27,7 @@ export interface StockMovement {
 
 export const inventoryApi = {
   async getInventory(page = 1, limit = 20, lowStockOnly = false, search = '') {
-    return adminApi(`/admin/inventory?page=${page}&limit=${limit}&lowStockOnly=${lowStockOnly}&search=${search}`, 'GET');
+    return adminApi(`/admin/inventory?page=${page}&limit=${limit}&lowStock=${lowStockOnly}&search=${search}`, 'GET');
   },
 
   async getProductInventory(productId: string) {

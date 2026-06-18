@@ -54,8 +54,10 @@ export function InventorySection({ onError, onSuccess }: InventoryProps) {
     }
   };
 
-  const loadItemDetail = async (productId: string) => {
+  const loadItemDetail = async (item: InventoryItem) => {
     setLoading(true);
+    // The backend route uses the Product's ObjectId, not the Inventory doc's _id
+    const productId = typeof item.product === 'object' ? (item.product as any)._id : item.product;
     try {
       const [detail, movRes] = await Promise.all([
         inventoryApi.getProductInventory(productId),
@@ -70,16 +72,20 @@ export function InventorySection({ onError, onSuccess }: InventoryProps) {
     }
   };
 
-  const handleUpdateStock = async (productId: string) => {
+  const handleUpdateStock = async () => {
+    if (!selectedItem) return;
     if (updateForm.quantity <= 0 || !updateForm.reason) {
       onError('Please enter a quantity greater than 0 and a reason.');
       return;
     }
+    const productId = typeof selectedItem.product === 'object'
+      ? (selectedItem.product as any)._id
+      : selectedItem.product;
     try {
       await inventoryApi.updateStock(productId, updateForm);
       onSuccess('Stock updated successfully');
       setUpdateForm({ type: 'in', quantity: 0, reason: '' });
-      loadItemDetail(productId);
+      loadItemDetail(selectedItem);
       loadInventory();
     } catch (err) {
       onError(`Failed to update stock: ${err}`);
@@ -106,7 +112,8 @@ export function InventorySection({ onError, onSuccess }: InventoryProps) {
             <p><strong>Reorder Level</strong> {selectedItem.reorderLevel}</p>
             <p><strong>Reorder Qty</strong> {selectedItem.reorderQuantity}</p>
             <p><strong>Status</strong> {stockBadge(selectedItem)}</p>
-            {selectedItem.warehouseLocation && <p><strong>Location</strong> {selectedItem.warehouseLocation}</p>}
+            {selectedItem.location && <p><strong>Location</strong> {selectedItem.location}</p>}
+            {selectedItem.binLocation && <p><strong>Bin</strong> {selectedItem.binLocation}</p>}
           </div>
 
           <div className="section-box">
@@ -135,7 +142,7 @@ export function InventorySection({ onError, onSuccess }: InventoryProps) {
                 value={updateForm.reason}
                 onChange={e => setUpdateForm({ ...updateForm, reason: e.target.value })}
               />
-              <button onClick={() => handleUpdateStock(selectedItem._id)}>
+              <button onClick={() => handleUpdateStock()}>
                 Update Stock
               </button>
             </div>
@@ -206,10 +213,10 @@ export function InventorySection({ onError, onSuccess }: InventoryProps) {
                 <td>{item.reservedStock ?? 0}</td>
                 <td style={{ color: item.availableStock === 0 ? '#ff8b8b' : '#43d17a', fontWeight: 700 }}>{item.availableStock}</td>
                 <td>{item.reorderLevel}</td>
-                <td><small>{item.lastRestockDate ? new Date(item.lastRestockDate).toLocaleDateString() : '—'}</small></td>
+                <td><small>{item.lastRestockedAt ? new Date(item.lastRestockedAt).toLocaleDateString() : '—'}</small></td>
                 <td>{stockBadge(item)}</td>
                 <td>
-                  <button className="secondary" onClick={() => loadItemDetail(item._id)}>
+                  <button className="secondary" onClick={() => loadItemDetail(item)}>
                     Manage
                   </button>
                 </td>

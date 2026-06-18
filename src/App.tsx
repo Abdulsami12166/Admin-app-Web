@@ -3,6 +3,7 @@ import {
   ActivityItem,
   AdminOrder,
   AdminProduct,
+  AdminRole,
   AdminVariant,
   AdminTransaction,
   AdminUser,
@@ -169,6 +170,12 @@ function maskEmail(email?: string) {
   return `${name.slice(0, 2)}***@${domain}`;
 }
 
+// Module-level references so sibling component functions can access App's state helpers
+let setActionBusy: (v: boolean) => void = () => {};
+let setBusyMessage: (v: string) => void = () => {};
+let showSuccess: (title: string, detail: string) => void = () => {};
+let showError: (title: string, detail: string) => void = () => {};
+
 export function App() {
   const [user, setUser] = React.useState<AdminUser | null>(() => {
     if (!localStorage.getItem(ADMIN_TOKEN_KEY)) return null;
@@ -188,24 +195,30 @@ export function App() {
   const [adminUsers, setAdminUsers] = React.useState<AdminUser[]>([]);
   const [feed, setFeed] = React.useState<FeedItem[]>([]);
   const [loading, setLoading] = React.useState(false);
-  const [actionBusy, setActionBusy] = React.useState(false);
-  const [busyMessage, setBusyMessage] = React.useState('');
+  const [actionBusy, setActionBusyState] = React.useState(false);
+  const [busyMessage, setBusyMessageState] = React.useState('');
   const role = normalizeRole(user?.role);
   const toast = useToast();
+
+  setActionBusy = setActionBusyState;
+  setBusyMessage = setBusyMessageState;
 
   const pushFeed = React.useCallback((title: string, detail: string) => {
     setFeed(current => [{id: `${Date.now()}-${Math.random()}`, title, detail, createdAt: Date.now()}, ...current].slice(0, 40));
   }, []);
 
-  const showSuccess = React.useCallback((title: string, detail: string) => {
+  const showSuccessCallback = React.useCallback((title: string, detail: string) => {
     toast.success(detail, title);
     pushFeed(title, detail);
   }, [pushFeed, toast]);
 
-  const showError = React.useCallback((title: string, detail: string) => {
+  const showErrorCallback = React.useCallback((title: string, detail: string) => {
     toast.error(detail, title);
     pushFeed(title, detail);
   }, [pushFeed, toast]);
+
+  showSuccess = showSuccessCallback;
+  showError = showErrorCallback;
 
   React.useEffect(() => {
     if (user?.permissions?.length) {
@@ -287,7 +300,7 @@ export function App() {
       return true;
     }
     if (tab.key === 'sessions') {
-      return role === 'super-admin' && can(role, tab.permission);
+      return false;
     }
     return can(role, tab.permission);
   });
