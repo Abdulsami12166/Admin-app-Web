@@ -105,10 +105,25 @@ export function ReturnsRefundsSection({ onError, onSuccess }: ReturnsRefundsProp
 
   // Socket subscriptions
   useEffect(() => {
-    const unsub = subscribeAdminSocketEvent(socketEvents.DOMAIN?.RETURN_UPDATED || 'return_updated', () => {
+    const unsubReturnCreate = subscribeAdminSocketEvent(socketEvents.DOMAIN?.RETURN_CREATED || 'support.return.created', () => {
       if (tab === 'returns') loadReturns();
     });
-    return () => unsub?.();
+    const unsubReturnUpdate = subscribeAdminSocketEvent(socketEvents.DOMAIN?.RETURN_UPDATED || 'support.return.updated', () => {
+      if (tab === 'returns') loadReturns();
+    });
+    const unsubRefundCreate = subscribeAdminSocketEvent(socketEvents.DOMAIN?.REFUND_CREATED || 'support.refund.created', () => {
+      if (tab === 'refunds') loadRefunds();
+    });
+    const unsubRefundUpdate = subscribeAdminSocketEvent(socketEvents.DOMAIN?.REFUND_UPDATED || 'support.refund.updated', () => {
+      if (tab === 'refunds') loadRefunds();
+    });
+
+    return () => {
+      unsubReturnCreate?.();
+      unsubReturnUpdate?.();
+      unsubRefundCreate?.();
+      unsubRefundUpdate?.();
+    };
   }, [tab]);
 
   if (selectedReturn) {
@@ -129,7 +144,7 @@ export function ReturnsRefundsSection({ onError, onSuccess }: ReturnsRefundsProp
           <h2>Return Items</h2>
           {selectedReturn.returnItems.map((item, i) => (
             <div key={i} className="timeline-entry tl-info">
-              <strong>{item.product}</strong>
+              <strong>{typeof item.product === 'object' ? ((item.product as any).name || (item.product as any).title || 'Product') : item.product}</strong>
               <small>Qty: {item.quantity} · Reason: {item.reason} · Condition: {item.condition}</small>
             </div>
           ))}

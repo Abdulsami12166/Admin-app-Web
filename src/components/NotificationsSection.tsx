@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { notificationsApi } from '../services/notifications';
+import { subscribeAdminSocketEvent } from '../services/socket';
+import { socketEvents } from '../services/events';
 
 interface NotificationTemplate {
   id: string;
@@ -155,6 +157,15 @@ export function NotificationsSection({ onError, onSuccess }: NotificationsSectio
     else if (activeTab === 'mappings') loadEventMappings();
     else if (activeTab === 'logs') loadLogs();
     else if (activeTab === 'marketing') loadMarketingRules();
+  }, [activeTab]);
+
+  useEffect(() => {
+    const unsub = subscribeAdminSocketEvent(socketEvents.DOMAIN.NOTIFICATION_SENT, () => {
+      if (activeTab === 'logs') {
+        loadLogs();
+      }
+    });
+    return () => unsub?.();
   }, [activeTab]);
 
   const tabs = [
