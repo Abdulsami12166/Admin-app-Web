@@ -1,7 +1,7 @@
 import type {Permission, RolePermissionMatrix} from './access';
 
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
-const PRODUCTION_ADMIN_API_BASE_URL = 'https://ecommerce-app-backend-1kn0.onrender.com/api/v1';
+const PRODUCTION_ADMIN_API_BASE_URL = 'https://backend-admin-qe72.onrender.com/api/v1';
 
 const API_BASE_URL =
   trimTrailingSlash(
@@ -10,7 +10,12 @@ const API_BASE_URL =
   );
 
 const SOCKET_BASE_URL =
-  trimTrailingSlash(import.meta.env.VITE_ADMIN_SOCKET_URL || API_BASE_URL.replace(/\/api\/v1$/, ''));
+  trimTrailingSlash(
+    import.meta.env.VITE_ADMIN_SOCKET_URL
+      || (import.meta.env.PROD
+        ? API_BASE_URL.replace(/\/api\/v1$/, '')
+        : 'https://backend-admin-qe72.onrender.com')
+  );
 
 export const ADMIN_TOKEN_KEY = 'ecommerce-admin-web-token';
 export const ADMIN_USER_KEY = 'ecommerce-admin-web-user';
