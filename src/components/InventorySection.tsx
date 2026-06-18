@@ -157,19 +157,16 @@ export function InventorySection({ onError, onSuccess }: InventoryProps) {
     );
   }
 
-  const lowCount = inventory.filter(i => i.lowStockAlert).length;
-  const outCount = inventory.filter(i => i.currentStock === 0).length;
-  const totalValue = inventory.reduce((s, i) => s + i.currentStock, 0);
-
   return (
     <div style={{ padding: '1.5rem' }}>
       <h2 style={{ margin: '0 0 1.25rem' }}>Inventory Management</h2>
 
-      <div className="stats-grid small" style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', marginBottom: '1.25rem' }}>
-        <article className="stat"><strong>{inventory.length}</strong><span>SKUs Tracked</span></article>
-        <article className="stat"><strong style={{ color: '#43d17a' }}>{totalValue}</strong><span>Total Units</span></article>
-        <article className="stat"><strong style={{ color: '#fcc419' }}>{lowCount}</strong><span>Low Stock Alerts</span></article>
-        <article className="stat"><strong style={{ color: '#ff8b8b' }}>{outCount}</strong><span>Out of Stock</span></article>
+      <div className="stats-grid small" style={{ gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', marginBottom: '1.25rem' }}>
+        <article className="stat"><strong>{stats?.totalProducts ?? inventory.length}</strong><span>SKUs Tracked</span></article>
+        <article className="stat"><strong style={{ color: '#43d17a' }}>{stats?.totalStock ?? 0}</strong><span>Total Units</span></article>
+        <article className="stat"><strong style={{ color: '#63d2ff' }}>{stats?.healthPercentage ?? 0}%</strong><span>Health</span></article>
+        <article className="stat"><strong style={{ color: '#fcc419' }}>{stats?.lowStockCount ?? 0}</strong><span>Low Stock</span></article>
+        <article className="stat"><strong style={{ color: '#ff8b8b' }}>{stats?.outOfStockCount ?? 0}</strong><span>Out of Stock</span></article>
       </div>
 
       <div className="section-filters">

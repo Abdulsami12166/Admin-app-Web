@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { featureTogglesApi, type FeatureToggle } from '../services/featureToggles';
+import { subscribeAdminSocketEvent } from '../services/socket';
+import { socketEvents } from '../services/events';
 
 interface FeatureTogglesProps {
   onError: (msg: string) => void;
@@ -16,8 +18,8 @@ export function FeatureTogglesSection({ onError, onSuccess }: FeatureTogglesProp
   const loadFeatures = async () => {
     setLoading(true);
     try {
-      const result = await featureTogglesApi.getFeatureToggles(1, 50, categoryFilter ? { category: categoryFilter } : undefined);
-      setFeatures(result.data?.features || []);
+      const result: any = await featureTogglesApi.getFeatureToggles(1, 50, categoryFilter ? { category: categoryFilter } : undefined);
+      setFeatures(Array.isArray(result.data) ? result.data : (result.data?.features || []));
     } catch (err) {
       onError(`Failed to load features: ${String(err)}`);
     } finally {
@@ -53,6 +55,33 @@ export function FeatureTogglesSection({ onError, onSuccess }: FeatureTogglesProp
   };
 
   useEffect(() => { loadFeatures(); }, [categoryFilter]);
+
+  useEffect(() => {
+    const unsub = subscribeAdminSocketEvent(socketEvents.DOMAIN.FEATURE_TOGGLE_UPDATED, (payload: any) => {
+      // Re-fetch everything if we get a socket update to ensure lists are in sync
+      loadFeatures();
+      
+      // Update selected feature if it is the one being updated
+      setSelectedFeature(prev => {
+        if (prev && prev.name === payload?.name) {
+          return {
+            ...prev,
+            isEnabled: payload.isEnabled,
+            rolloutPercentage: payload.rolloutPercentage ?? prev.rolloutPercentage,
+          };
+        }
+        return prev;
+      });
+      // Also update the rolloutPercentage slider if the same feature is selected
+      setRolloutPercentage(prev => {
+        if (selectedFeature && selectedFeature.name === payload?.name && payload.rolloutPercentage !== undefined) {
+          return payload.rolloutPercentage;
+        }
+        return prev;
+      });
+    });
+    return () => unsub();
+  }, [categoryFilter, selectedFeature]);
 
   if (selectedFeature) {
     return (

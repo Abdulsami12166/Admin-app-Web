@@ -18,8 +18,8 @@ export function SettingsSection({ onError, onSuccess }: SettingsProps) {
   const loadSettings = async () => {
     setLoading(true);
     try {
-      const result = await settingsApi.getSettings(1, 100, categoryFilter || undefined);
-      setSettings(result.data?.settings || []);
+      const result: any = await settingsApi.getSettings(1, 100, categoryFilter || undefined);
+      setSettings(result.ungrouped || []);
     } catch (err) {
       onError(`Failed to load settings: ${err}`);
     } finally {

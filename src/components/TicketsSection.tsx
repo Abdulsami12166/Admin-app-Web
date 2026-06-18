@@ -33,6 +33,7 @@ function statusBadge(status: string) {
 
 export function TicketsSection({ onError, onSuccess }: TicketsProps) {
   const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [stats, setStats] = useState<any>(null);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState('');
@@ -42,11 +43,15 @@ export function TicketsSection({ onError, onSuccess }: TicketsProps) {
   const loadTickets = async () => {
     setLoading(true);
     try {
-      const result = await ticketsApi.getTickets(1, 50, {
-        status: statusFilter || undefined,
-        priority: priorityFilter || undefined,
-      });
-      setTickets(result.data?.tickets || []);
+      const [result, statsRes] = await Promise.allSettled([
+        ticketsApi.getTickets(1, 50, {
+          status: statusFilter || undefined,
+          priority: priorityFilter || undefined,
+        }),
+        ticketsApi.getTicketStats()
+      ]);
+      if (result.status === 'fulfilled') setTickets(result.value.data?.tickets || []);
+      if (statsRes.status === 'fulfilled') setStats(statsRes.value.data?.stats || null);
     } catch (err) {
       onError(`Failed to load tickets: ${err}`);
     } finally {
@@ -86,6 +91,19 @@ export function TicketsSection({ onError, onSuccess }: TicketsProps) {
       loadTickets();
     } catch (err) {
       onError(`Failed to update status: ${err}`);
+    }
+  };
+
+  const handleEscalate = async (ticketId: string) => {
+    const reason = prompt('Reason for escalation:');
+    if (!reason) return;
+    try {
+      await ticketsApi.escalateTicket(ticketId, reason);
+      onSuccess('Ticket escalated successfully');
+      loadTicketDetail(ticketId);
+      loadTickets();
+    } catch (err) {
+      onError(`Failed to escalate ticket: ${err}`);
     }
   };
 
@@ -139,6 +157,14 @@ export function TicketsSection({ onError, onSuccess }: TicketsProps) {
               <option value="resolved">Resolved</option>
               <option value="closed">Closed</option>
             </select>
+            <div style={{ marginTop: '1rem', borderTop: '1px solid #28425f', paddingTop: '1rem' }}>
+              <strong>Escalate Ticket</strong>
+              <div style={{ marginTop: '0.5rem' }}>
+                <button className="secondary" onClick={() => handleEscalate(selectedTicket._id)} style={{ color: '#ff8b8b', borderColor: '#ff8b8b' }}>
+                  Escalate to Higher Tier
+                </button>
+              </div>
+            </div>
           </div>
 
           <div className="section-box">
@@ -174,6 +200,13 @@ export function TicketsSection({ onError, onSuccess }: TicketsProps) {
   return (
     <div style={{ padding: '1.5rem' }}>
       <h2 style={{ margin: '0 0 1.25rem' }}>Support Tickets</h2>
+
+      <div className="stats-grid small" style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', marginBottom: '1.25rem' }}>
+        <article className="stat"><strong>{stats?.total ?? 0}</strong><span>Total Tickets</span></article>
+        <article className="stat"><strong style={{ color: '#fcc419' }}>{stats?.byStatus?.find((s:any) => s._id === 'open')?.count ?? 0}</strong><span>Open Tickets</span></article>
+        <article className="stat"><strong style={{ color: '#ff8b8b' }}>{stats?.byStatus?.find((s:any) => s._id === 'escalated')?.count ?? 0}</strong><span>Escalated</span></article>
+        <article className="stat"><strong style={{ color: '#43d17a' }}>{stats?.avgRating ?? '0.0'} / 5</strong><span>Avg Rating</span></article>
+      </div>
 
       <div className="section-filters">
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ width: 160 }}>
