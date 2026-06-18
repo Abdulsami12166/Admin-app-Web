@@ -37,7 +37,7 @@ export function AuditLogsSection({ onError, onSuccess }: AuditLogsProps) {
         100,
         actionFilter ? { action: actionFilter } : undefined,
       );
-      setLogs(result.data?.logs || []);
+      setLogs(Array.isArray(result.data) ? result.data : (result.data?.logs || []));
     } catch (err) {
       onError(`Failed to load audit logs: ${err}`);
     } finally {

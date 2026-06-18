@@ -28,8 +28,8 @@ export function InvoicesSection({ onError, onSuccess }: InvoicesProps) {
   const loadInvoices = async () => {
     setLoading(true);
     try {
-      const result = await invoicesApi.getInvoices(1, 50, statusFilter || undefined);
-      setInvoices(result.data?.invoices || []);
+      const result: any = await invoicesApi.getInvoices(1, 50, statusFilter || undefined);
+      setInvoices(Array.isArray(result.data) ? result.data : (result.data?.invoices || []));
     } catch (err) {
       onError(`Failed to load invoices: ${err}`);
     } finally {
@@ -40,8 +40,8 @@ export function InvoicesSection({ onError, onSuccess }: InvoicesProps) {
   const loadInvoiceDetail = async (invoiceId: string) => {
     setLoading(true);
     try {
-      const result = await invoicesApi.getInvoiceDetail(invoiceId);
-      setSelectedInvoice(result.data?.invoice || null);
+      const result: any = await invoicesApi.getInvoiceDetail(invoiceId);
+      setSelectedInvoice(result.data?.invoice || result.data || null);
     } catch (err) {
       onError(`Failed to load invoice: ${err}`);
     } finally {
