@@ -8,9 +8,9 @@ const isLocal = typeof window !== 'undefined' && (
 
 const PRODUCTION_ADMIN_API_BASE_URL = isLocal
   ? 'http://localhost:5001/api/v1'
-  : 'https://backend-admin-qe72.onrender.com/api/v1';
+  : 'https://ecommerce-app-backend-1kn0.onrender.com/api/v1';
 
-const API_BASE_URL =
+export const API_BASE_URL =
   trimTrailingSlash(
     import.meta.env.VITE_ADMIN_API_BASE_URL
       || (import.meta.env.PROD ? PRODUCTION_ADMIN_API_BASE_URL : '/api/v1'),
@@ -21,7 +21,7 @@ const SOCKET_BASE_URL =
     import.meta.env.VITE_ADMIN_SOCKET_URL
       || (import.meta.env.PROD
         ? API_BASE_URL.replace(/\/api\/v1$/, '')
-        : (isLocal ? 'http://localhost:5001' : 'https://backend-admin-qe72.onrender.com'))
+        : (isLocal ? 'http://localhost:5001' : 'https://ecommerce-app-backend-1kn0.onrender.com'))
   );
 
 export const ADMIN_TOKEN_KEY = 'ecommerce-admin-web-token';

@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000/api/v1/admin';
+import { adminApi, ADMIN_TOKEN_KEY, API_BASE_URL } from './api';
 
 export interface ReportData {
   totalRevenue?: number;
@@ -30,33 +30,21 @@ export interface ReportData {
 
 export const reportsApi = {
   async getReport(type: string, dateRange: { start: string; end: string }): Promise<{ data: ReportData }> {
-    const token = localStorage.getItem('ADMIN_TOKEN_KEY');
     const params = new URLSearchParams();
     if (dateRange.start) params.append('startDate', dateRange.start);
     if (dateRange.end) params.append('endDate', dateRange.end);
     
-    const response = await fetch(`${API_BASE}/reports/${type}?${params}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch ${type} report`);
-    }
-
-    return response.json();
+    return adminApi(`/admin/reports/${type}?${params.toString()}`, 'GET');
   },
 
   async exportReport(type: string, format: 'csv' | 'pdf', dateRange: { start: string; end: string }): Promise<void> {
-    const token = localStorage.getItem('ADMIN_TOKEN_KEY');
+    const token = localStorage.getItem(ADMIN_TOKEN_KEY);
     const params = new URLSearchParams();
     if (dateRange.start) params.append('startDate', dateRange.start);
     if (dateRange.end) params.append('endDate', dateRange.end);
     params.append('format', format);
     
-    const response = await fetch(`${API_BASE}/reports/${type}/export?${params}`, {
+    const response = await fetch(`${API_BASE_URL}/admin/reports/${type}/export?${params.toString()}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
