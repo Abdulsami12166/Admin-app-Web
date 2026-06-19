@@ -184,7 +184,12 @@ export default function UserHistorySection({
                   transition: 'all 0.15s',
                 }}
               >
-                <strong style={{ color: '#eef4fb', fontSize: 13 }}>{u.name || 'Unnamed'}</strong>
+                <strong style={{ color: '#eef4fb', fontSize: 13 }}>
+                  {u.name || 'Unnamed'}{' '}
+                  <span style={{ fontFamily: 'monospace', color: '#63d2ff', fontSize: 11, marginLeft: 4 }}>
+                    ({(u._id || u.id || '').slice(-6).toUpperCase()})
+                  </span>
+                </strong>
                 <div style={DS.muted}>{u.email}</div>
                 <div style={{ marginTop: 3, display: 'flex', gap: 6 }}>
                   <span style={{ fontSize: 11, color: u.blocked ? '#ff8b8b' : '#43d17a', fontWeight: 700 }}>
@@ -209,6 +214,7 @@ export default function UserHistorySection({
                 <div>
                   <p style={DS.sectionTitle}>Profile</p>
                   <div><small style={{ color: '#9fb6cb' }}>Name</small><div style={{ color: '#eef4fb', fontWeight: 700 }}>{selected.name || '—'}</div></div>
+                  <div style={{ marginTop: 6 }}><small style={{ color: '#9fb6cb' }}>User ID</small><div style={{ color: '#63d2ff', fontFamily: 'monospace', fontSize: 11 }}>{selected._id || selected.id}</div></div>
                   <div style={{ marginTop: 6 }}><small style={{ color: '#9fb6cb' }}>Email</small><div style={{ color: '#eef4fb' }}>{selected.email}</div></div>
                   <div style={{ marginTop: 6 }}><small style={{ color: '#9fb6cb' }}>Phone</small><div style={{ color: '#eef4fb' }}>{selected.phone || 'N/A'}</div></div>
                 </div>

@@ -133,7 +133,7 @@ export function NotificationsSection({ onError, onSuccess }: NotificationsSectio
   const [showSendModal, setShowSendModal] = useState(false);
   const [sendTargetType, setSendTargetType] = useState<'all' | 'role' | 'user'>('all');
   const [sendUserId, setSendUserId] = useState('');
-  const [sendUserRole, setSendUserRole] = useState('customer');
+  const [sendUserRole, setSendUserRole] = useState('user');
   const [sendChannel, setSendChannel] = useState('push');
   const [sendTitle, setSendTitle] = useState('');
   const [sendBody, setSendBody] = useState('');
@@ -191,7 +191,7 @@ export function NotificationsSection({ onError, onSuccess }: NotificationsSectio
   const openSendModal = () => {
     setSendTargetType('all');
     setSendUserId('');
-    setSendUserRole('customer');
+    setSendUserRole('user');
     setSendChannel('push');
     setSendTitle('');
     setSendBody('');
@@ -350,6 +350,7 @@ export function NotificationsSection({ onError, onSuccess }: NotificationsSectio
         channel: l.channel || l.type || 'unknown',
         status: l.status,
         recipient: l.recipient,
+        user: l.user,
         createdAt: l.createdAt,
       })));
       const statsData = statsRes?.data || {};
@@ -513,7 +514,7 @@ export function NotificationsSection({ onError, onSuccess }: NotificationsSectio
                 <tr>
                   <th>ID</th>
                   <th>Channel</th>
-                  <th>Recipient</th>
+                  <th>Recipient (Name / ID / Contact)</th>
                   <th>Status</th>
                   <th>Timestamp</th>
                 </tr>
@@ -523,7 +524,15 @@ export function NotificationsSection({ onError, onSuccess }: NotificationsSectio
                   <tr key={log.id}>
                     <td><small style={{ fontFamily: 'monospace', color: '#9fb6cb' }}>{log.id?.slice(-10)}</small></td>
                     <td><span className="badge badge-neutral">{log.channel}</span></td>
-                    <td><small>{log.recipient?.email || log.recipient?.phone || '—'}</small></td>
+                    <td>
+                      <div>
+                        {log.user?.name || '—'}{' '}
+                        <small style={{ color: '#63d2ff', fontFamily: 'monospace' }}>
+                          ({log.user?.id ? String(log.user.id).slice(-6).toUpperCase() : log.user?._id ? String(log.user._id).slice(-6).toUpperCase() : '—'})
+                        </small>
+                      </div>
+                      <small style={{ color: '#9fb6cb' }}>{log.recipient?.email || log.recipient?.phone || '—'}</small>
+                    </td>
                     <td>{logStatusBadge(log.status)}</td>
                     <td><small>{new Date(log.createdAt).toLocaleString()}</small></td>
                   </tr>
@@ -899,7 +908,7 @@ export function NotificationsSection({ onError, onSuccess }: NotificationsSectio
                     onChange={e => setSendUserRole(e.target.value)}
                     style={{ width: '100%', padding: '0.65rem 0.75rem', borderRadius: '8px', border: '1px solid #28425f', background: '#08111f', color: '#eef4fb', boxSizing: 'border-box' }}
                   >
-                    <option value="customer">Customer</option>
+                    <option value="user">Customer</option>
                     <option value="admin">Admin</option>
                     <option value="super-admin">Super Admin</option>
                     <option value="support">Support</option>
