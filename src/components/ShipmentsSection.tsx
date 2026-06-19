@@ -12,6 +12,7 @@ function shipmentBadge(status: string) {
   const map: Record<string, string> = {
     delivered: 'badge-success',
     in_transit: 'badge-info',
+    shipped: 'badge-info',
     out_for_delivery: 'badge-warning',
     failed: 'badge-danger',
     pending: 'badge-neutral',
@@ -36,8 +37,16 @@ export function ShipmentsSection({ onError, onSuccess }: ShipmentsProps) {
         shipmentsApi.getShipments(1, 50, statusFilter || undefined),
         shipmentsApi.getShipmentStats(),
       ]);
-      if (res.status === 'fulfilled') setShipments(res.value.data?.shipments || []);
-      if (statsRes.status === 'fulfilled') setStats(statsRes.value.data || null);
+      if (res.status === 'fulfilled') {
+        setShipments(res.value.data?.shipments || []);
+      } else {
+        onError(`Failed to load shipments: ${res.reason?.message || res.reason}`);
+      }
+      if (statsRes.status === 'fulfilled') {
+        setStats(statsRes.value.data || null);
+      } else {
+        onError(`Failed to load stats: ${statsRes.reason?.message || statsRes.reason}`);
+      }
     } catch (err) {
       onError(`Failed to load shipments: ${err}`);
     } finally {
@@ -212,6 +221,7 @@ export function ShipmentsSection({ onError, onSuccess }: ShipmentsProps) {
           <option value="">All Statuses</option>
           <option value="pending">Pending</option>
           <option value="packed">Packed</option>
+          <option value="shipped">Shipped</option>
           <option value="in_transit">In Transit</option>
           <option value="out_for_delivery">Out for Delivery</option>
           <option value="delivered">Delivered</option>
