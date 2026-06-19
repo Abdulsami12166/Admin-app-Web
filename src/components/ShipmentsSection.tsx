@@ -235,6 +235,7 @@ export function ShipmentsSection({ onError, onSuccess }: ShipmentsProps) {
           <thead>
             <tr>
               <th>Tracking #</th>
+              <th>Order / Products</th>
               <th>Carrier</th>
               <th>Status</th>
               <th>Est. Delivery</th>
@@ -247,6 +248,27 @@ export function ShipmentsSection({ onError, onSuccess }: ShipmentsProps) {
             {shipments.map(s => (
               <tr key={s._id}>
                 <td style={{ fontWeight: 700, color: '#63d2ff' }}>{s.trackingNumber}</td>
+                <td>
+                  {s.order && typeof s.order === 'object' ? (
+                    <div>
+                      <div style={{ color: '#eef4fb', fontWeight: 600 }}>
+                        {s.order.razorpayOrderId || `Order #${s.order._id?.slice(-8).toUpperCase()}`}
+                      </div>
+                      {s.order.user?.name && (
+                        <div style={{ color: '#63d2ff', fontSize: '0.82rem', fontWeight: 500, margin: '2px 0' }}>
+                          Name: {s.order.user.name}
+                        </div>
+                      )}
+                      <div style={{ color: '#9fb6cb', fontSize: '0.8rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>
+                        {s.order.items && s.order.items.length > 0
+                          ? s.order.items.map((item: any) => `${item.quantity || 0}x ${item.title || 'item'}`).join(', ')
+                          : '—'}
+                      </div>
+                    </div>
+                  ) : (
+                    '—'
+                  )}
+                </td>
                 <td>{s.carrier || '—'}</td>
                 <td>{shipmentBadge(s.status)}</td>
                 <td><small>{(s.estimatedDelivery || s.estimatedDeliveryDate) ? new Date(s.estimatedDelivery || s.estimatedDeliveryDate || '').toLocaleDateString() : '—'}</small></td>
