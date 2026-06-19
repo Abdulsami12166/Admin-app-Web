@@ -124,7 +124,7 @@ export function InvoicesSection({ onError, onSuccess }: InvoicesProps) {
               <tbody>
                 {selectedInvoice.items.map((item, idx) => (
                   <tr key={idx}>
-                    <td>{item.product}</td>
+                    <td>{typeof item.product === 'object' && item.product ? ((item.product as any).title || (item.product as any).name || item.description) : (item.description || String(item.product))}</td>
                     <td>{item.quantity}</td>
                     <td>₹{item.unitPrice}</td>
                     <td>₹{item.tax}</td>

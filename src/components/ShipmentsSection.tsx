@@ -53,7 +53,7 @@ export function ShipmentsSection({ onError, onSuccess }: ShipmentsProps) {
         shipmentsApi.getTrackingHistory(shipmentId),
       ]);
       setSelectedShipment(detail.data?.shipment || null);
-      setTrackingHistory(history.data?.trackingEvents || history.data?.history || []);
+      setTrackingHistory(history.data?.trackingEvents || history.data?.events || history.data?.history || []);
     } catch (err) {
       onError(`Failed to load shipment detail: ${err}`);
     } finally {
