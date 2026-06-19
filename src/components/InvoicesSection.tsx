@@ -81,8 +81,8 @@ export function InvoicesSection({ onError, onSuccess }: InvoicesProps) {
             <h3 style={{ margin: '0 0 1rem', color: '#63d2ff', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Invoice Summary</h3>
             <p><strong>Status</strong> {invoiceBadge(selectedInvoice.status)}</p>
             <p><strong>Subtotal</strong> ₹{selectedInvoice.subtotal}</p>
-            <p><strong>Tax</strong> ₹{selectedInvoice.tax}</p>
-            <p><strong>Discount</strong> ₹{selectedInvoice.discount}</p>
+            <p><strong>Tax</strong> ₹{typeof selectedInvoice.tax === 'object' && selectedInvoice.tax ? ((selectedInvoice.tax as any).amount ?? 0) : selectedInvoice.tax}</p>
+            <p><strong>Discount</strong> ₹{typeof selectedInvoice.discount === 'object' && selectedInvoice.discount ? ((selectedInvoice.discount as any).amount ?? 0) : selectedInvoice.discount}</p>
             <p><strong>Total</strong> <span style={{ color: '#63d2ff', fontWeight: 800 }}>₹{selectedInvoice.total}</span></p>
             <p><strong>Amount Paid</strong> <span style={{ color: '#43d17a', fontWeight: 800 }}>₹{selectedInvoice.amountPaid}</span></p>
             <p><strong>Amount Due</strong> <span style={{ color: selectedInvoice.amountDue > 0 ? '#fcc419' : '#43d17a', fontWeight: 800 }}>₹{selectedInvoice.amountDue}</span></p>
@@ -183,7 +183,7 @@ export function InvoicesSection({ onError, onSuccess }: InvoicesProps) {
             {invoices.map(invoice => (
               <tr key={invoice._id}>
                 <td style={{ fontWeight: 700, color: '#63d2ff' }}>{invoice.invoiceNumber}</td>
-                <td><small>{invoice.order}</small></td>
+                <td><small>{typeof invoice.order === 'object' && invoice.order ? ((invoice.order as any).razorpayOrderId || (invoice.order as any)._id) : invoice.order}</small></td>
                 <td>₹{invoice.total}</td>
                 <td style={{ color: '#43d17a' }}>₹{invoice.amountPaid}</td>
                 <td style={{ color: invoice.amountDue > 0 ? '#fcc419' : '#43d17a' }}>₹{invoice.amountDue}</td>
