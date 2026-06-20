@@ -308,12 +308,18 @@ export function CustomersSection({ onError, onSuccess }: CustomersProps) {
           <section style={DS.card}>
             <h3 style={{ margin: '0 0 12px', color: '#eef4fb' }}>Wishlist</h3>
             {wishlist.length ? (
-              wishlist.map(item => (
-                <div key={String(item._id)} style={{ padding: '8px 0', borderTop: '1px solid #28425f' }}>
-                  <strong style={{ color: '#eef4fb' }}>{String(item.title || 'Product')}</strong>
-                  <div style={DS.muted}>{formatMoney(Number(item.discountedPrice || item.price || 0))}</div>
-                </div>
-              ))
+              wishlist.map(item => {
+                const isObj = typeof item === 'object' && item !== null;
+                const itemId = isObj ? String(item._id || item.id || '') : String(item);
+                const title = isObj ? String(item.title || 'Product') : 'Product';
+                const price = isObj ? Number(item.discountedPrice || item.price || 0) : 0;
+                return (
+                  <div key={itemId} style={{ padding: '8px 0', borderTop: '1px solid #28425f' }}>
+                    <strong style={{ color: '#eef4fb' }}>{title}</strong>
+                    <div style={DS.muted}>{formatMoney(price)}</div>
+                  </div>
+                );
+              })
             ) : (
               <EmptyState label="Wishlist is empty." />
             )}
