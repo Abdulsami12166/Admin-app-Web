@@ -488,6 +488,34 @@ function LoginScreen({onLoggedIn}: {onLoggedIn: (user: AdminUser) => void}) {
   const [error, setError] = React.useState('');
   const [loading, setLoading] = React.useState(false);
 
+  React.useEffect(() => {
+    const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '6LdDzyktAAAAAEiKx7HhA6V6Q6U5qLpwx4OBCvSL';
+    const scriptId = 'recaptcha-v3-script';
+    
+    let script = document.getElementById(scriptId) as HTMLScriptElement;
+    if (!script) {
+      script = document.createElement('script');
+      script.id = scriptId;
+      script.src = `https://www.google.com/recaptcha/api.js?render=${siteKey}`;
+      script.async = true;
+      script.defer = true;
+      document.body.appendChild(script);
+    }
+
+    const showBadge = () => {
+      const badge = document.querySelector('.grecaptcha-badge') as HTMLElement;
+      if (badge) badge.style.visibility = 'visible';
+    };
+    
+    const interval = setInterval(showBadge, 200);
+
+    return () => {
+      clearInterval(interval);
+      const badge = document.querySelector('.grecaptcha-badge') as HTMLElement;
+      if (badge) badge.style.visibility = 'hidden';
+    };
+  }, []);
+
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     setError('');
@@ -502,7 +530,22 @@ function LoginScreen({onLoggedIn}: {onLoggedIn: (user: AdminUser) => void}) {
         return;
       }
 
-      const captchaResponse = (window as any).grecaptcha?.getResponse();
+      let captchaResponse = '';
+      if ((window as any).grecaptcha) {
+        captchaResponse = await new Promise<string>((resolve) => {
+          (window as any).grecaptcha.ready(() => {
+            (window as any).grecaptcha.execute(
+              import.meta.env.VITE_RECAPTCHA_SITE_KEY || '6LdDzyktAAAAAEiKx7HhA6V6Q6U5qLpwx4OBCvSL',
+              { action: 'login' }
+            ).then((token: string) => {
+              resolve(token);
+            }).catch(() => {
+              resolve('');
+            });
+          });
+        });
+      }
+
       if (!captchaResponse) {
         throw new Error('Please complete the CAPTCHA check.');
       }
@@ -516,7 +559,9 @@ function LoginScreen({onLoggedIn}: {onLoggedIn: (user: AdminUser) => void}) {
       onLoggedIn(response.user);
     } catch (loginError) {
       setError(loginError instanceof Error ? loginError.message : 'Unable to sign in');
-      (window as any).grecaptcha?.reset();
+      if ((window as any).grecaptcha?.reset) {
+        (window as any).grecaptcha.reset();
+      }
     } finally {
       setLoading(false);
     }
@@ -547,12 +592,6 @@ function LoginScreen({onLoggedIn}: {onLoggedIn: (user: AdminUser) => void}) {
               type="password"
               required
             />
-            {/* ponytail: show captcha only when not in forgot password mode */}
-            <div 
-              className="g-recaptcha" 
-              data-sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY || '6LdDzyktAAAAAEiKx7HhA6V6Q6U5qLpwx4OBCvSL'}
-              style={{ display: 'flex', justifyContent: 'center', margin: '15px 0' }}
-            ></div>
           </>
         )}
 
