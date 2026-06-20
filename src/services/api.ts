@@ -207,10 +207,10 @@ async function apiRequest<T = any>(path: string, options: RequestOptions = {}): 
   return payload as {success?: boolean; message?: string} & T;
 }
 
-export async function loginAdmin(email: string, password: string) {
+export function loginAdmin(email: string, password: string, recaptchaToken?: string) {
   return apiRequest<{success: boolean; token: string; user: AdminUser; message?: string}>(
     '/admin/auth/login',
-    {method: 'POST', body: {email, password}},
+    {method: 'POST', body: {email, password, recaptchaToken}},
   );
 }
 
@@ -266,6 +266,8 @@ export const adminApi = Object.assign(adminApiFunction, {
   getUserActivities: (userId: string, page = 1, limit = 50) => apiRequest<{data: {activities: ActivityItem[]}}>(`/admin/users/${userId}/activity?page=${page}&limit=${limit}`, {auth: true}),
   getUserLoginHistory: (userId: string, page = 1, limit = 50) => apiRequest<{data: {history: ActivityItem[]}}>(`/admin/users/${userId}/login-history?page=${page}&limit=${limit}`, {auth: true}),
   getUserPayments: (userId: string, page = 1, limit = 50) => apiRequest<{data: {payments: AdminOrder[]}}>(`/admin/users/${userId}/payments?page=${page}&limit=${limit}`, {auth: true}),
+  getUserTickets: (userId: string, page = 1, limit = 50) => apiRequest<{data: {tickets: any[]}}>(`/admin/users/${userId}/tickets?page=${page}&limit=${limit}`, {auth: true}),
+  getUserRefunds: (userId: string, page = 1, limit = 50) => apiRequest<{data: {refunds: any[]}}>(`/admin/users/${userId}/refunds?page=${page}&limit=${limit}`, {auth: true}),
   blockUser: (userId: string) => apiRequest(`/admin/users/${userId}/block`, {method: 'POST', auth: true}),
   unblockUser: (userId: string) => apiRequest(`/admin/users/${userId}/unblock`, {method: 'POST', auth: true}),
   forceLogoutUser: (userId: string) => apiRequest(`/admin/users/${userId}/logout`, {method: 'POST', auth: true}),

@@ -39,6 +39,7 @@ export function TicketsSection({ onError, onSuccess }: TicketsProps) {
   const [statusFilter, setStatusFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
   const [messageForm, setMessageForm] = useState({ message: '' });
+  const [attachment, setAttachment] = useState('');
 
   const loadTickets = async () => {
     setLoading(true);
@@ -74,9 +75,13 @@ export function TicketsSection({ onError, onSuccess }: TicketsProps) {
   const handleAddMessage = async (ticketId: string) => {
     if (!messageForm.message) { onError('Message cannot be empty'); return; }
     try {
-      await ticketsApi.addMessage(ticketId, { message: messageForm.message });
+      await ticketsApi.addMessage(ticketId, { 
+        message: messageForm.message,
+        attachments: attachment ? [attachment] : []
+      });
       onSuccess('Message sent');
       setMessageForm({ message: '' });
+      setAttachment('');
       loadTicketDetail(ticketId);
     } catch (err) {
       onError(`Failed to send message: ${err}`);
@@ -175,6 +180,32 @@ export function TicketsSection({ onError, onSuccess }: TicketsProps) {
                 value={messageForm.message}
                 onChange={e => setMessageForm({ message: e.target.value })}
               />
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <input
+                  type="text"
+                  placeholder="Optional attachment URL..."
+                  value={attachment}
+                  onChange={e => setAttachment(e.target.value)}
+                  style={{ flex: 1 }}
+                />
+                <button 
+                  className="secondary" 
+                  type="button"
+                  onClick={() => {
+                    const mockUrls = [
+                      'https://images.unsplash.com/photo-1542291026-7eec264c27ff',
+                      'https://example.com/receipt.pdf',
+                      'https://example.com/error_log.txt'
+                    ];
+                    const randomUrl = mockUrls[Math.floor(Math.random() * mockUrls.length)];
+                    setAttachment(randomUrl);
+                    onSuccess('Mock file attached!');
+                  }}
+                  style={{ padding: '0.5rem', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
+                >
+                  Mock File
+                </button>
+              </div>
               <button onClick={() => handleAddMessage(selectedTicket._id)}>Send Message</button>
             </div>
           </div>
@@ -187,6 +218,21 @@ export function TicketsSection({ onError, onSuccess }: TicketsProps) {
               <div key={idx} className={`timeline-entry ${msg.senderType === 'admin' ? 'tl-info' : 'tl-success'}`}>
                 <strong style={{ textTransform: 'capitalize' }}>{msg.senderType}</strong>
                 <span style={{ color: '#dbe8f5', marginTop: '0.3rem', display: 'block' }}>{msg.message}</span>
+                {msg.attachments && msg.attachments.length > 0 && (
+                  <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    {msg.attachments.map((url, i) => (
+                      <a 
+                        key={i} 
+                        href={url} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        style={{ color: '#63d2ff', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px', textDecoration: 'underline' }}
+                      >
+                        📎 Attachment {i + 1}
+                      </a>
+                    ))}
+                  </div>
+                )}
                 <small>{new Date(msg.createdAt).toLocaleString()}</small>
               </div>
             )) : <div className="state-empty">No messages yet.</div>}

@@ -502,7 +502,12 @@ function LoginScreen({onLoggedIn}: {onLoggedIn: (user: AdminUser) => void}) {
         return;
       }
 
-      const response = await loginAdmin(email.trim(), password);
+      const captchaResponse = (window as any).grecaptcha?.getResponse();
+      if (!captchaResponse) {
+        throw new Error('Please complete the CAPTCHA check.');
+      }
+
+      const response = await loginAdmin(email.trim(), password, captchaResponse);
       if (!response?.token || !response.user) {
         throw new Error('Admin login did not return a valid session. Please try again.');
       }
@@ -511,6 +516,7 @@ function LoginScreen({onLoggedIn}: {onLoggedIn: (user: AdminUser) => void}) {
       onLoggedIn(response.user);
     } catch (loginError) {
       setError(loginError instanceof Error ? loginError.message : 'Unable to sign in');
+      (window as any).grecaptcha?.reset();
     } finally {
       setLoading(false);
     }
@@ -541,6 +547,12 @@ function LoginScreen({onLoggedIn}: {onLoggedIn: (user: AdminUser) => void}) {
               type="password"
               required
             />
+            {/* ponytail: show captcha only when not in forgot password mode */}
+            <div 
+              className="g-recaptcha" 
+              data-sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY || '6LdDzyktAAAAAEiKx7HhA6V6Q6U5qLpwx4OBCvSL'}
+              style={{ display: 'flex', justifyContent: 'center', margin: '15px 0' }}
+            ></div>
           </>
         )}
 
@@ -557,7 +569,7 @@ function LoginScreen({onLoggedIn}: {onLoggedIn: (user: AdminUser) => void}) {
           }}>
             {forgotMode ? 'Back to login' : 'Forgot password?'}
           </button>
-          <small>CAPTCHA / rate limit should be enforced by backend or gateway in production.</small>
+          <small>CAPTCHA check is verified by the backend and required for secure sign-in.</small>
         </div>
       </form>
     </main>

@@ -38,17 +38,21 @@ export default function UserHistorySection({
   onError: (m: string) => void;
   onSuccess: (m: string) => void;
 }) {
-  const [users, setUsers] = useState<AdminUser[]>([]);
+   const [users, setUsers] = useState<AdminUser[]>([]);
   const [selected, setSelected] = useState<AdminUser | null>(null);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [loginHistory, setLoginHistory] = useState<ActivityItem[]>([]);
   const [payments, setPayments] = useState<AdminOrder[]>([]);
+  const [tickets, setTickets] = useState<any[]>([]);
+  const [refunds, setRefunds] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
 
   const [activityPage, setActivityPage] = useState(1);
   const [loginPage, setLoginPage] = useState(1);
   const [paymentPage, setPaymentPage] = useState(1);
+  const [ticketPage, setTicketPage] = useState(1);
+  const [refundPage, setRefundPage] = useState(1);
   const pageSize = 10;
 
   async function loadUsers() {
@@ -71,19 +75,27 @@ export default function UserHistorySection({
     setActivities([]);
     setLoginHistory([]);
     setPayments([]);
+    setTickets([]);
+    setRefunds([]);
     setActivityPage(1);
     setLoginPage(1);
     setPaymentPage(1);
+    setTicketPage(1);
+    setRefundPage(1);
     setLoading(true);
     try {
-      const [a, l, p] = await Promise.all([
+      const [a, l, p, t, r] = await Promise.all([
         adminApi.getUserActivities(user._id || user.id || '', 1, pageSize),
         adminApi.getUserLoginHistory(user._id || user.id || '', 1, pageSize),
         adminApi.getUserPayments(user._id || user.id || '', 1, pageSize),
+        adminApi.getUserTickets(user._id || user.id || '', 1, pageSize),
+        adminApi.getUserRefunds(user._id || user.id || '', 1, pageSize),
       ]);
       setActivities(Array.isArray(a.data) ? (a.data as any) : ((a.data as any)?.activities || (a.data as any)?.logs || []));
       setLoginHistory(l.data?.history || []);
       setPayments(p.data?.payments || []);
+      setTickets(t.data?.tickets || []);
+      setRefunds(r.data?.refunds || []);
     } catch (e: any) {
       onError(String(e.message || e));
     } finally {
@@ -126,6 +138,34 @@ export default function UserHistorySection({
       const res = await adminApi.getUserPayments(selected._id || selected.id || '', page, pageSize);
       setPayments(res.data?.payments || []);
       setPaymentPage(page);
+    } catch (e: any) {
+      onError(String(e.message || e));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadTicketPage(page: number) {
+    if (!selected) return;
+    setLoading(true);
+    try {
+      const res = await adminApi.getUserTickets(selected._id || selected.id || '', page, pageSize);
+      setTickets(res.data?.tickets || []);
+      setTicketPage(page);
+    } catch (e: any) {
+      onError(String(e.message || e));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadRefundPage(page: number) {
+    if (!selected) return;
+    setLoading(true);
+    try {
+      const res = await adminApi.getUserRefunds(selected._id || selected.id || '', page, pageSize);
+      setRefunds(res.data?.refunds || []);
+      setRefundPage(page);
     } catch (e: any) {
       onError(String(e.message || e));
     } finally {
@@ -354,6 +394,88 @@ export default function UserHistorySection({
                   </>
                 ) : (
                   <div style={{ color: '#9fb6cb', textAlign: 'center', padding: '1rem' }}>No payments recorded.</div>
+                )}
+              </div>
+
+              {/* Support Tickets */}
+              <div style={DS.card}>
+                <p style={DS.sectionTitle}>Support Tickets ({tickets.length})</p>
+                {tickets.length ? (
+                  <>
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr>
+                            <th style={DS.th}>Ticket #</th>
+                            <th style={DS.th}>Subject</th>
+                            <th style={DS.th}>Priority</th>
+                            <th style={DS.th}>Status</th>
+                            <th style={DS.th}>Created At</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {tickets.map(t => (
+                            <tr key={t._id}>
+                              <td style={DS.td}><strong style={{ color: '#63d2ff' }}>{t.ticketNumber}</strong></td>
+                              <td style={DS.td}>{t.subject}</td>
+                              <td style={DS.td}>{t.priority}</td>
+                              <td style={DS.td}>{t.status}</td>
+                              <td style={DS.td}>{t.createdAt ? new Date(t.createdAt).toLocaleString() : '—'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <PaginationControls
+                      page={ticketPage}
+                      hasMore={tickets.length === pageSize}
+                      onPrev={() => loadTicketPage(ticketPage - 1)}
+                      onNext={() => loadTicketPage(ticketPage + 1)}
+                    />
+                  </>
+                ) : (
+                  <div style={{ color: '#9fb6cb', textAlign: 'center', padding: '1rem' }}>No support tickets recorded.</div>
+                )}
+              </div>
+
+              {/* Refunds */}
+              <div style={DS.card}>
+                <p style={DS.sectionTitle}>Refund Requests ({refunds.length})</p>
+                {refunds.length ? (
+                  <>
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr>
+                            <th style={DS.th}>Refund ID</th>
+                            <th style={DS.th}>Amount</th>
+                            <th style={DS.th}>Status</th>
+                            <th style={DS.th}>Reason</th>
+                            <th style={DS.th}>Created At</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {refunds.map(r => (
+                            <tr key={r._id}>
+                              <td style={DS.td}><strong style={{ fontSize: 11, fontFamily: 'monospace', color: '#9fb6cb' }}>{r._id?.slice(-8) || '—'}</strong></td>
+                              <td style={DS.td}><strong style={{ color: '#63d2ff' }}>₹{r.refundAmount || 0}</strong></td>
+                              <td style={DS.td}>{r.status}</td>
+                              <td style={DS.td}>{r.reason}</td>
+                              <td style={DS.td}>{r.createdAt ? new Date(r.createdAt).toLocaleString() : '—'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <PaginationControls
+                      page={refundPage}
+                      hasMore={refunds.length === pageSize}
+                      onPrev={() => loadRefundPage(refundPage - 1)}
+                      onNext={() => loadRefundPage(refundPage + 1)}
+                    />
+                  </>
+                ) : (
+                  <div style={{ color: '#9fb6cb', textAlign: 'center', padding: '1rem' }}>No refund requests recorded.</div>
                 )}
               </div>
             </div>

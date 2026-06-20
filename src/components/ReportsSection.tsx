@@ -96,7 +96,7 @@ export function ReportsSection({ onError, onSuccess }: ReportsProps) {
                     <thead><tr><th>Order ID</th><th>Date</th><th>Customer</th><th>Amount</th><th>Status</th></tr></thead>
                     <tbody>
                       {(reportData.recentSales || []).map((sale: any) => (
-                        <tr key={sale.id}>
+                        <tr key={sale.orderId || sale.id}>
                           <td><small>{sale.orderId}</small></td>
                           <td><small>{new Date(sale.date).toLocaleDateString()}</small></td>
                           <td>{sale.customer}</td>

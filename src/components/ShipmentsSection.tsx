@@ -134,12 +134,20 @@ export function ShipmentsSection({ onError, onSuccess }: ShipmentsProps) {
           <div className="section-box">
             <h3 style={{ margin: '0 0 1rem', color: '#63d2ff', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Update Tracking</h3>
             <div style={{ display: 'grid', gap: '0.75rem' }}>
-              <input
-                type="text"
-                placeholder="Status (e.g., in_transit, delivered)"
+              <select
                 value={trackingForm.status}
                 onChange={e => setTrackingForm({ ...trackingForm, status: e.target.value })}
-              />
+                style={{ padding: '0.6rem', borderRadius: '8px', border: '1px solid #28425f', background: '#0a1622', color: '#eef4fb', fontSize: '0.9rem' }}
+              >
+                <option value="">Select Status</option>
+                <option value="pending">Pending</option>
+                <option value="packed">Packed</option>
+                <option value="shipped">Shipped</option>
+                <option value="in_transit">In Transit</option>
+                <option value="out_for_delivery">Out for Delivery</option>
+                <option value="delivered">Delivered</option>
+                <option value="failed">Failed</option>
+              </select>
               <input
                 type="text"
                 placeholder="Location (e.g., Mumbai Hub)"
