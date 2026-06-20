@@ -547,7 +547,11 @@ function LoginScreen({onLoggedIn}: {onLoggedIn: (user: AdminUser) => void}) {
       }
 
       if (!captchaResponse) {
-        throw new Error('Please complete the CAPTCHA check.');
+        if (import.meta.env.DEV) {
+          captchaResponse = 'mock_captcha_token';
+        } else {
+          throw new Error('Please complete the CAPTCHA check.');
+        }
       }
 
       const response = await loginAdmin(email.trim(), password, captchaResponse);
