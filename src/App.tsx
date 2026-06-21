@@ -46,8 +46,9 @@ import { BulkOperationsSection } from './components/BulkOperationsSection';
 import { ReportsSection } from './components/ReportsSection';
 import AdminManagementSection from './components/AdminManagementSection';
 import UserHistorySection from './components/UserHistorySection';
+import { CustomerAuditLogSection } from './components/CustomerAuditLogSection';
 
-type TabKey = 'dashboard' | 'admin-management' | 'user-history' | 'access' | 'users' | 'products' | 'orders' | 'transactions' | 'analytics' | 'activity' | 'customers' | 'inventory' | 'shipments' | 'tickets' | 'invoices' | 'returns-refunds' | 'audit-logs' | 'settings' | 'feature-toggles' | 'notifications' | 'sessions' | 'order-timeline' | 'bulk-operations' | 'reports';
+type TabKey = 'dashboard' | 'admin-management' | 'user-history' | 'access' | 'users' | 'products' | 'orders' | 'transactions' | 'analytics' | 'activity' | 'customers' | 'customer-audit-log' | 'inventory' | 'shipments' | 'tickets' | 'invoices' | 'returns-refunds' | 'audit-logs' | 'settings' | 'feature-toggles' | 'notifications' | 'sessions' | 'order-timeline' | 'bulk-operations' | 'reports';
 type FeedItem = {id: string; title: string; detail: string; createdAt: number};
 
 const tabs: Array<{key: TabKey; label: string; permission: Parameters<typeof can>[1]}> = [
@@ -57,6 +58,7 @@ const tabs: Array<{key: TabKey; label: string; permission: Parameters<typeof can
   {key: 'access', label: 'Access', permission: 'admins:manage'},
   {key: 'users', label: 'Users', permission: 'users:view'},
   {key: 'customers', label: 'Customers', permission: 'users:view'},
+  {key: 'customer-audit-log', label: 'Customer Audit Log', permission: 'audit:view'},
   {key: 'products', label: 'Products', permission: 'products:view'},
   {key: 'inventory', label: 'Inventory', permission: 'inventory:view'},
   {key: 'orders', label: 'Orders', permission: 'orders:view'},
@@ -383,6 +385,12 @@ export function App() {
         {activeTab === 'products' && <Products products={products} refreshAll={refreshAll} role={role} pushFeed={pushFeed} />}
         {activeTab === 'customers' && can(role, 'users:view') && (
           <CustomersSection 
+            onError={(msg) => pushFeed('Error', msg)} 
+            onSuccess={(msg) => pushFeed('Success', msg)} 
+          />
+        )}
+        {activeTab === 'customer-audit-log' && can(role, 'audit:view') && (
+          <CustomerAuditLogSection 
             onError={(msg) => pushFeed('Error', msg)} 
             onSuccess={(msg) => pushFeed('Success', msg)} 
           />

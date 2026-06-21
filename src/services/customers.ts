@@ -92,4 +92,18 @@ export const customerApi = {
   async getCustomerStats() {
     return adminApi('/admin/customers/stats/overview', 'GET');
   },
+  async getGlobalAuditLogs(page = 1, limit = 50, search = '', module = '', action = '', platform = '') {
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+      search,
+      module,
+      action,
+      platform,
+    });
+    return adminApi(`/admin/audit-logs/customers?${params.toString()}`, 'GET');
+  },
+  async getCustomerHistorySummary(userId: string) {
+    return adminApi(`/admin/customers/${userId}/history-summary`, 'GET');
+  },
 };

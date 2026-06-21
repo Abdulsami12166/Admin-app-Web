@@ -103,6 +103,12 @@ export function CustomersSection({ onError, onSuccess }: CustomersProps) {
     total: 0,
   });
 
+  const [historySummary, setHistorySummary] = useState<any>(null);
+  const [activeDetailTab, setActiveDetailTab] = useState<'profile' | 'timeline' | 'orders' | 'wishlist' | 'purchases' | 'tickets' | 'login-history'>('profile');
+  const [selectedOrderDetail, setSelectedOrderDetail] = useState<any>(null);
+  const [selectedProductDetail, setSelectedProductDetail] = useState<any>(null);
+  const [selectedTicketDetail, setSelectedTicketDetail] = useState<any>(null);
+
   const loadCustomers = async () => {
     setLoading(true);
     try {
@@ -126,10 +132,11 @@ export function CustomersSection({ onError, onSuccess }: CustomersProps) {
   const loadCustomerDetail = async (customerId: string) => {
     setDetailLoading(true);
     try {
-      const [detail, logs, prefs] = await Promise.all([
+      const [detail, logs, prefs, summary] = await Promise.all([
         customerApi.getCustomerDetail(customerId),
         customerApi.getCustomerActivityLogs(customerId),
         customerApi.getCustomerNotificationPreferences(customerId),
+        customerApi.getCustomerHistorySummary(customerId),
       ]);
       setSelectedCustomer(detail.data?.customer || null);
       setActivityLogs(
@@ -139,6 +146,7 @@ export function CustomersSection({ onError, onSuccess }: CustomersProps) {
         (prefs.data as any)?.preferences ??
           (prefs.data && !Array.isArray(prefs.data) ? (prefs.data as any) : null)
       );
+      setHistorySummary(summary.data || null);
     } catch (err) {
       onError(
         `Failed to load customer detail: ${err instanceof Error ? err.message : String(err)}`
@@ -185,13 +193,61 @@ export function CustomersSection({ onError, onSuccess }: CustomersProps) {
     };
   }, [selectedCustomer]);
 
+  // Wishlist history extractor
+  const wishlistHistoryList = useMemo(() => {
+    if (!historySummary) return [];
+    const timeline = historySummary.timeline || [];
+    const currentWishlist = historySummary.wishlist || [];
+    const wishlistItems: any[] = [];
+    
+    // Add current wishlist items
+    currentWishlist.forEach((item: any) => {
+      const addedLog = timeline.find((log: any) => 
+        log.action === 'Product Added to Wishlist' && String(log.relatedEntityId) === String(item._id)
+      );
+      wishlistItems.push({
+        product: item,
+        name: item.title || item.name || 'Product',
+        image: item.images?.[0] || '',
+        addedDate: addedLog ? addedLog.createdAt : item.createdAt,
+        removedDate: null,
+        status: 'In Wishlist'
+      });
+    });
+
+    // Add removed items from timeline
+    timeline.forEach((log: any) => {
+      if (log.action === 'Product Removed from Wishlist') {
+        const prodId = log.relatedEntityId;
+        // Prevent duplicate logs for the same removal event
+        const alreadyIn = wishlistItems.some(x => x.status === 'Removed' && String(x.product?._id) === String(prodId) && x.removedDate === log.createdAt);
+        if (!alreadyIn) {
+          const matchingAdd = timeline.find((addLog: any) => 
+            addLog.action === 'Product Added to Wishlist' && 
+            String(addLog.relatedEntityId) === String(prodId) && 
+            new Date(addLog.createdAt) < new Date(log.createdAt)
+          );
+          
+          wishlistItems.push({
+            product: { _id: prodId },
+            name: log.details?.replace('Product removed from wishlist: ', '') || 'Product (Removed)',
+            image: '',
+            addedDate: matchingAdd ? matchingAdd.createdAt : null,
+            removedDate: log.createdAt,
+            status: 'Removed'
+          });
+        }
+      }
+    });
+
+    return wishlistItems.sort((a, b) => new Date(b.addedDate || b.removedDate || 0).getTime() - new Date(a.addedDate || a.removedDate || 0).getTime());
+  }, [historySummary]);
+
   // ─── Customer Detail View ─────────────────────────────────────────────────
   if (selectedCustomer) {
     const statusLabel =
       selectedCustomer.status || ((selectedCustomer as any).blocked ? 'blocked' : 'active');
-    const orders = (selectedCustomer.orders || []).filter(Boolean);
     const addresses = (selectedCustomer.addresses || []).filter(Boolean);
-    const wishlist = (selectedCustomer.wishlist || []).filter(Boolean);
 
     return (
       <div style={{ padding: 20, display: 'grid', gap: 16 }}>
@@ -218,7 +274,7 @@ export function CustomersSection({ onError, onSuccess }: CustomersProps) {
               </button>
             )}
             <button onClick={() => setSelectedCustomer(null)} style={{ padding: '8px 14px', background: 'rgba(22,48,75,0.9)', color: '#eef4fb', border: '1px solid #28425f', borderRadius: 10, fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>
-              ← Back
+              ← Back to List
             </button>
           </div>
         </div>
@@ -246,100 +302,537 @@ export function CustomersSection({ onError, onSuccess }: CustomersProps) {
           <StatCard label="Total Spent" value={formatMoney(selectedCustomer.totalSpent)} />
         </div>
 
-        {/* Profile & Notification Prefs */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
-          <section style={DS.card}>
-            <h3 style={{ margin: '0 0 12px', color: '#eef4fb' }}>Profile</h3>
-            <p style={DS.muted}><strong style={{ color: '#9fb6cb' }}>Created:</strong> {formatDate(selectedCustomer.createdAt)}</p>
-            <p style={DS.muted}><strong style={{ color: '#9fb6cb' }}>Last login:</strong> {formatDate(selectedCustomer.lastLoginAt || selectedCustomer.lastLogin)}</p>
-            <p style={DS.muted}><strong style={{ color: '#9fb6cb' }}>Last activity:</strong> {formatDate(selectedCustomer.lastActivityAt || selectedCustomer.updatedAt)}</p>
-          </section>
-
-          <section style={DS.card}>
-            <h3 style={{ margin: '0 0 12px', color: '#eef4fb' }}>Notification Preferences</h3>
-            {preferences?.channels ? (
-              Object.entries(preferences.channels).map(([key, enabled]) => (
-                <p key={key} style={DS.muted}><strong style={{ color: '#9fb6cb' }}>{key}:</strong> <span style={{ color: (enabled as boolean) ? '#43d17a' : '#ff8b8b' }}>{(enabled as boolean) ? 'Enabled' : 'Disabled'}</span></p>
-              ))
-            ) : (
-              <EmptyState label="No notification preferences recorded." />
-            )}
-          </section>
+        {/* Tab switcher */}
+        <div style={{ display: 'flex', gap: 8, borderBottom: '1px solid #28425f', paddingBottom: 10, overflowX: 'auto' }}>
+          {[
+            { key: 'profile', label: 'Profile & Addresses' },
+            { key: 'timeline', label: 'Activity Timeline' },
+            { key: 'orders', label: 'Order History Summary' },
+            { key: 'wishlist', label: 'Wishlist History' },
+            { key: 'purchases', label: 'Recent Purchases' },
+            { key: 'tickets', label: 'Ticket History' },
+            { key: 'login-history', label: 'Login History' }
+          ].map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveDetailTab(tab.key as any)}
+              style={{
+                padding: '8px 16px',
+                background: activeDetailTab === tab.key ? '#63d2ff' : 'transparent',
+                color: activeDetailTab === tab.key ? '#06101d' : '#eef4fb',
+                border: '1px solid #28425f',
+                borderRadius: 8,
+                cursor: 'pointer',
+                fontWeight: 700,
+                fontSize: 12,
+                whiteSpace: 'nowrap',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
-        {/* Addresses */}
-        <section style={DS.card}>
-          <h3 style={{ margin: '0 0 12px', color: '#eef4fb' }}>Addresses</h3>
-          {addresses.length ? (
-            addresses.map(address => (
-              <div key={address._id || address.address} style={{ padding: '10px 0', borderTop: '1px solid #28425f' }}>
-                <strong style={{ color: '#63d2ff' }}>{address.type}</strong>
-                <div style={DS.muted}>{address.address}</div>
-              </div>
-            ))
-          ) : (
-            <EmptyState label="No saved addresses found." />
-          )}
-        </section>
+        {/* Tab Panels */}
+        {activeDetailTab === 'profile' && (
+          <div style={{ display: 'grid', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
+              <section style={DS.card}>
+                <h3 style={{ margin: '0 0 12px', color: '#eef4fb' }}>Profile Info</h3>
+                <p style={DS.muted}><strong style={{ color: '#9fb6cb' }}>Created:</strong> {formatDate(selectedCustomer.createdAt)}</p>
+                <p style={DS.muted}><strong style={{ color: '#9fb6cb' }}>Last login:</strong> {formatDate(selectedCustomer.lastLoginAt || selectedCustomer.lastLogin)}</p>
+                <p style={DS.muted}><strong style={{ color: '#9fb6cb' }}>Last activity:</strong> {formatDate(selectedCustomer.lastActivityAt || selectedCustomer.updatedAt)}</p>
+              </section>
 
-        {/* Orders */}
-        <section style={DS.card}>
-          <h3 style={{ margin: '0 0 12px', color: '#eef4fb' }}>Orders</h3>
-          {orders.length ? (
-            orders.map(order => (
-              <div key={String(order._id)} style={{ padding: '10px 0', borderTop: '1px solid #28425f', display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-                <div>
-                  <strong style={{ color: '#eef4fb' }}>#{String(order._id).slice(-8).toUpperCase()}</strong>
-                  <div style={DS.muted}>{formatDate(String(order.createdAt || ''))}</div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ color: '#9fb6cb', fontSize: 12 }}>{String(order.orderStatus || 'pending')}</div>
-                  <strong style={{ color: '#63d2ff' }}>{formatMoney(Number(order.totalAmount || 0))}</strong>
-                </div>
-              </div>
-            ))
-          ) : (
-            <EmptyState label="No orders placed yet." />
-          )}
-        </section>
+              <section style={DS.card}>
+                <h3 style={{ margin: '0 0 12px', color: '#eef4fb' }}>Notification Preferences</h3>
+                {preferences?.channels ? (
+                  Object.entries(preferences.channels).map(([key, enabled]) => (
+                    <p key={key} style={DS.muted}><strong style={{ color: '#9fb6cb' }}>{key}:</strong> <span style={{ color: (enabled as boolean) ? '#43d17a' : '#ff8b8b' }}>{(enabled as boolean) ? 'Enabled' : 'Disabled'}</span></p>
+                  ))
+                ) : (
+                  <EmptyState label="No notification preferences recorded." />
+                )}
+              </section>
+            </div>
 
-        {/* Wishlist & Activity */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
-          <section style={DS.card}>
-            <h3 style={{ margin: '0 0 12px', color: '#eef4fb' }}>Wishlist</h3>
-            {wishlist.length ? (
-              wishlist.map(item => {
-                const isObj = typeof item === 'object' && item !== null;
-                const itemId = isObj ? String(item._id || item.id || '') : String(item);
-                const title = isObj ? String(item.title || 'Product') : 'Product';
-                const price = isObj ? Number(item.discountedPrice || item.price || 0) : 0;
-                return (
-                  <div key={itemId} style={{ padding: '8px 0', borderTop: '1px solid #28425f' }}>
-                    <strong style={{ color: '#eef4fb' }}>{title}</strong>
-                    <div style={DS.muted}>{formatMoney(price)}</div>
+            <section style={DS.card}>
+              <h3 style={{ margin: '0 0 12px', color: '#eef4fb' }}>Addresses</h3>
+              {addresses.length ? (
+                addresses.map(address => (
+                  <div key={address._id || address.address} style={{ padding: '10px 0', borderTop: '1px solid #28425f' }}>
+                    <strong style={{ color: '#63d2ff' }}>{address.type}</strong>
+                    <div style={DS.muted}>{address.address}</div>
                   </div>
-                );
-              })
-            ) : (
-              <EmptyState label="Wishlist is empty." />
-            )}
-          </section>
+                ))
+              ) : (
+                <EmptyState label="No saved addresses found." />
+              )}
+            </section>
+          </div>
+        )}
 
+        {activeDetailTab === 'timeline' && (
           <section style={DS.card}>
             <h3 style={{ margin: '0 0 12px', color: '#eef4fb' }}>Activity Timeline</h3>
             {activityLogs.length ? (
-              activityLogs.map(log => (
-                <div key={log._id} style={{ padding: '10px 0 10px 14px', borderLeft: '3px solid #63d2ff', marginLeft: 4, marginBottom: 8 }}>
-                  <strong style={{ color: '#eef4fb', fontSize: 13 }}>{log.action}</strong>
-                  <div style={DS.muted}>{typeof log.details === 'string' ? log.details : log.resource || 'Customer activity'}</div>
-                  <small style={{ color: '#9fb6cb', fontSize: 11 }}>{formatDate(log.createdAt || log.timestamp)}</small>
-                </div>
-              ))
+              <div style={{ display: 'grid', gap: 10 }}>
+                {activityLogs.map(log => (
+                  <div key={log._id} style={{ padding: '10px 14px', borderLeft: '3px solid #63d2ff', marginLeft: 4, background: 'rgba(10,23,40,0.4)', borderRadius: '0 8px 8px 0' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <strong style={{ color: '#eef4fb', fontSize: 13 }}>{log.action}</strong>
+                      <small style={{ color: '#9fb6cb', fontSize: 11 }}>{formatDate(log.createdAt || log.timestamp)}</small>
+                    </div>
+                    <div style={{ ...DS.muted, marginTop: 4 }}>{typeof log.details === 'string' ? log.details : log.resource || 'Customer activity'}</div>
+                  </div>
+                ))}
+              </div>
             ) : (
-              <EmptyState label="No login, logout, or account activity recorded." />
+              <EmptyState label="No activities recorded." />
             )}
           </section>
-        </div>
+        )}
+
+        {activeDetailTab === 'orders' && (
+          <section style={DS.card}>
+            <h3 style={{ margin: '0 0 12px', color: '#eef4fb' }}>Order History Summary</h3>
+            {historySummary?.orders?.length ? (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr>
+                      <th style={DS.th}>Order ID</th>
+                      <th style={DS.th}>Product(s)</th>
+                      <th style={DS.th}>Qty</th>
+                      <th style={DS.th}>Amount</th>
+                      <th style={DS.th}>Order Status</th>
+                      <th style={DS.th}>Payment Status</th>
+                      <th style={DS.th}>Purchase Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {historySummary.orders.map((order: any) => {
+                      const totalQty = order.items?.reduce((sum: number, x: any) => sum + Number(x.quantity || 1), 0) || 0;
+                      const productNames = order.items?.map((x: any) => x.title || 'Product').join(', ') || 'n/a';
+                      return (
+                        <tr key={order._id}>
+                          <td style={DS.td}>
+                            <button
+                              onClick={() => setSelectedOrderDetail(order)}
+                              style={{ background: 'none', border: 'none', color: '#63d2ff', textDecoration: 'underline', cursor: 'pointer', fontWeight: 'bold', padding: 0 }}
+                            >
+                              #{String(order._id).slice(-8).toUpperCase()}
+                            </button>
+                          </td>
+                          <td style={{ ...DS.td, maxWidth: '200px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                            {productNames}
+                          </td>
+                          <td style={DS.td}>{totalQty}</td>
+                          <td style={{ ...DS.td, color: '#63d2ff', fontWeight: 'bold' }}>{formatMoney(order.totalAmount)}</td>
+                          <td style={DS.td}>{order.orderStatus}</td>
+                          <td style={DS.td}>{order.paymentStatus}</td>
+                          <td style={DS.td}>{formatDate(order.createdAt)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <EmptyState label="No order history found." />
+            )}
+          </section>
+        )}
+
+        {activeDetailTab === 'wishlist' && (
+          <section style={DS.card}>
+            <h3 style={{ margin: '0 0 12px', color: '#eef4fb' }}>Wishlist History</h3>
+            {wishlistHistoryList.length ? (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr>
+                      <th style={DS.th}>Product Name</th>
+                      <th style={DS.th}>Image</th>
+                      <th style={DS.th}>Added Date</th>
+                      <th style={DS.th}>Removed Date</th>
+                      <th style={DS.th}>Current Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {wishlistHistoryList.map((item: any, idx: number) => (
+                      <tr key={idx}>
+                        <td style={DS.td}>
+                          {item.product?._id && item.status !== 'Removed' ? (
+                            <button
+                              onClick={() => setSelectedProductDetail(item.product)}
+                              style={{ background: 'none', border: 'none', color: '#63d2ff', textDecoration: 'underline', cursor: 'pointer', fontWeight: 'bold', padding: 0 }}
+                            >
+                              {item.name}
+                            </button>
+                          ) : (
+                            <span>{item.name}</span>
+                          )}
+                        </td>
+                        <td style={DS.td}>
+                          {item.image ? (
+                            <img src={item.image} alt={item.name} style={{ width: 40, height: 40, borderRadius: 6, objectFit: 'cover' }} />
+                          ) : (
+                            <span style={{ color: '#5b7692' }}>—</span>
+                          )}
+                        </td>
+                        <td style={DS.td}>{formatDate(item.addedDate)}</td>
+                        <td style={DS.td}>{item.removedDate ? formatDate(item.removedDate) : <span style={{ color: '#5b7692' }}>—</span>}</td>
+                        <td style={DS.td}>
+                          <span style={{
+                            padding: '3px 8px',
+                            borderRadius: 6,
+                            fontSize: 11,
+                            fontWeight: 'bold',
+                            background: item.status === 'In Wishlist' ? 'rgba(99,210,255,0.15)' : 'rgba(255,139,139,0.15)',
+                            color: item.status === 'In Wishlist' ? '#63d2ff' : '#ff8b8b'
+                          }}>
+                            {item.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <EmptyState label="Wishlist history is empty." />
+            )}
+          </section>
+        )}
+
+        {activeDetailTab === 'purchases' && (
+          <section style={DS.card}>
+            <h3 style={{ margin: '0 0 12px', color: '#eef4fb' }}>Recent Purchases</h3>
+            {historySummary?.orders?.length ? (
+              <div style={{ display: 'grid', gap: 10 }}>
+                {historySummary.orders.flatMap((order: any) => order.items || []).slice(0, 10).map((item: any, idx: number) => (
+                  <div key={idx} style={{ padding: '10px 14px', background: 'rgba(10,23,40,0.4)', borderRadius: 8, display: 'flex', gap: 12, alignItems: 'center' }}>
+                    {item.image ? (
+                      <img src={item.image} alt={item.title} style={{ width: 48, height: 48, borderRadius: 8, objectFit: 'cover' }} />
+                    ) : (
+                      <div style={{ width: 48, height: 48, background: '#1c344e', borderRadius: 8 }} />
+                    )}
+                    <div style={{ flex: 1 }}>
+                      <strong style={{ color: '#eef4fb' }}>{item.title || 'Product'}</strong>
+                      <div style={DS.muted}>Quantity: {item.quantity || 1} &nbsp;·&nbsp; Price: {formatMoney(item.price)}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState label="No purchases found." />
+            )}
+          </section>
+        )}
+
+        {activeDetailTab === 'tickets' && (
+          <section style={DS.card}>
+            <h3 style={{ margin: '0 0 12px', color: '#eef4fb' }}>Support Ticket History</h3>
+            {historySummary?.tickets?.length ? (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr>
+                      <th style={DS.th}>Ticket Number / Subject</th>
+                      <th style={DS.th}>Category</th>
+                      <th style={DS.th}>Priority</th>
+                      <th style={DS.th}>Status</th>
+                      <th style={DS.th}>Created Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {historySummary.tickets.map((ticket: any) => (
+                      <tr key={ticket._id}>
+                        <td style={DS.td}>
+                          <button
+                            onClick={() => setSelectedTicketDetail(ticket)}
+                            style={{ background: 'none', border: 'none', color: '#63d2ff', textDecoration: 'underline', cursor: 'pointer', fontWeight: 'bold', padding: 0 }}
+                          >
+                            #{String(ticket._id).slice(-6).toUpperCase()} - {ticket.subject}
+                          </button>
+                        </td>
+                        <td style={{ ...DS.td, textTransform: 'capitalize' }}>{ticket.category}</td>
+                        <td style={DS.td}>
+                          <span style={{
+                            padding: '2px 6px',
+                            borderRadius: 4,
+                            fontSize: 11,
+                            fontWeight: 'bold',
+                            background: ticket.priority === 'high' || ticket.priority === 'critical' ? 'rgba(255,139,139,0.15)' : 'rgba(99,210,255,0.15)',
+                            color: ticket.priority === 'high' || ticket.priority === 'critical' ? '#ff8b8b' : '#63d2ff'
+                          }}>
+                            {ticket.priority}
+                          </span>
+                        </td>
+                        <td style={DS.td}>
+                          <span style={{
+                            padding: '3px 8px',
+                            borderRadius: 6,
+                            fontSize: 11,
+                            fontWeight: 'bold',
+                            background: ticket.status === 'open' ? 'rgba(67,209,122,0.15)' : 'rgba(159,182,203,0.15)',
+                            color: ticket.status === 'open' ? '#43d17a' : '#9fb6cb'
+                          }}>
+                            {ticket.status}
+                          </span>
+                        </td>
+                        <td style={DS.td}>{formatDate(ticket.createdAt)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <EmptyState label="No ticket history found." />
+            )}
+          </section>
+        )}
+
+        {activeDetailTab === 'login-history' && (
+          <section style={DS.card}>
+            <h3 style={{ margin: '0 0 12px', color: '#eef4fb' }}>Login History</h3>
+            {historySummary?.loginHistory?.length ? (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr>
+                      <th style={DS.th}>Timestamp</th>
+                      <th style={DS.th}>IP Address</th>
+                      <th style={DS.th}>Device Information</th>
+                      <th style={DS.th}>Platform</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {historySummary.loginHistory.map((log: any) => (
+                      <tr key={log._id}>
+                        <td style={DS.td}>{formatDate(log.createdAt)}</td>
+                        <td style={DS.td}>{log.ipAddress || 'unknown'}</td>
+                        <td style={{ ...DS.td, maxWidth: '250px', wordBreak: 'break-all' }}>{log.deviceInfo || log.userAgent || 'unknown'}</td>
+                        <td style={DS.td}>
+                          <span style={{
+                            padding: '2px 8px',
+                            borderRadius: 4,
+                            fontSize: 11,
+                            fontWeight: 'bold',
+                            background: 'rgba(99,210,255,0.15)',
+                            color: '#63d2ff'
+                          }}>
+                            {log.platform || 'unknown'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <EmptyState label="No login history found." />
+            )}
+          </section>
+        )}
+
+        {/* Order Details Modal Overlay */}
+        {selectedOrderDetail && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}>
+            <div style={{
+              background: '#0a1728',
+              border: '1px solid #28425f',
+              borderRadius: 16,
+              padding: 24,
+              maxWidth: 600,
+              width: '90%',
+              maxHeight: '90vh',
+              overflowY: 'auto'
+            }}>
+              <h3 style={{ margin: '0 0 16px', color: '#63d2ff' }}>Order Details #{String(selectedOrderDetail._id).toUpperCase()}</h3>
+              <div style={{ display: 'grid', gap: 12 }}>
+                <div style={DS.muted}><strong>Purchase Date:</strong> {formatDate(selectedOrderDetail.createdAt)}</div>
+                <div style={DS.muted}><strong>Status:</strong> {selectedOrderDetail.orderStatus}</div>
+                <div style={DS.muted}><strong>Payment Status:</strong> {selectedOrderDetail.paymentStatus}</div>
+                <div style={DS.muted}><strong>Payment Method:</strong> {selectedOrderDetail.paymentMethod}</div>
+                
+                <h4 style={{ margin: '12px 0 6px', color: '#eef4fb' }}>Items</h4>
+                <div style={{ borderTop: '1px solid #28425f', borderBottom: '1px solid #28425f', padding: '8px 0' }}>
+                  {selectedOrderDetail.items?.map((item: any, index: number) => (
+                    <div key={index} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+                      <span style={{ color: '#eef4fb' }}>{item.title || 'Product'} (x{item.quantity || 1})</span>
+                      <span style={{ color: '#63d2ff' }}>{formatMoney(item.price)}</span>
+                    </div>
+                  ))}
+                </div>
+                
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: 16 }}>
+                  <span style={{ color: '#eef4fb' }}>Total Amount</span>
+                  <span style={{ color: '#63d2ff' }}>{formatMoney(selectedOrderDetail.totalAmount)}</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedOrderDetail(null)}
+                style={{
+                  marginTop: 20,
+                  padding: '8px 16px',
+                  background: '#63d2ff',
+                  color: '#06101d',
+                  border: 'none',
+                  borderRadius: 8,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  width: '100%'
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Product Details Modal Overlay */}
+        {selectedProductDetail && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}>
+            <div style={{
+              background: '#0a1728',
+              border: '1px solid #28425f',
+              borderRadius: 16,
+              padding: 24,
+              maxWidth: 500,
+              width: '90%',
+              textAlign: 'center'
+            }}>
+              {selectedProductDetail.images?.[0] ? (
+                <img
+                  src={selectedProductDetail.images[0]}
+                  alt={selectedProductDetail.title}
+                  style={{ width: '100%', maxHeight: 250, objectFit: 'contain', borderRadius: 12, marginBottom: 16 }}
+                />
+              ) : (
+                <div style={{ width: '100%', height: 180, background: '#1c344e', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9fb6cb', marginBottom: 16 }}>No Image</div>
+              )}
+              <h3 style={{ margin: '0 0 8px', color: '#eef4fb' }}>{selectedProductDetail.title || selectedProductDetail.name}</h3>
+              <p style={{ ...DS.muted, textTransform: 'capitalize', margin: '0 0 12px' }}>{selectedProductDetail.category}</p>
+              <div style={{ fontSize: 20, fontWeight: 'bold', color: '#63d2ff', margin: '12px 0' }}>
+                {formatMoney(selectedProductDetail.discountedPrice || selectedProductDetail.price)}
+              </div>
+              <p style={{ color: '#9fb6cb', fontSize: 13, lineHeight: '1.5', margin: '0 0 20px', textAlign: 'left' }}>
+                {selectedProductDetail.description || 'No description available.'}
+              </p>
+              <button
+                onClick={() => setSelectedProductDetail(null)}
+                style={{
+                  padding: '8px 16px',
+                  background: '#63d2ff',
+                  color: '#06101d',
+                  border: 'none',
+                  borderRadius: 8,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  width: '100%'
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Ticket Details Modal Overlay */}
+        {selectedTicketDetail && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}>
+            <div style={{
+              background: '#0a1728',
+              border: '1px solid #28425f',
+              borderRadius: 16,
+              padding: 24,
+              maxWidth: 600,
+              width: '90%',
+              maxHeight: '90vh',
+              overflowY: 'auto'
+            }}>
+              <h3 style={{ margin: '0 0 16px', color: '#63d2ff' }}>Support Ticket Details</h3>
+              <div style={{ display: 'grid', gap: 12 }}>
+                <div style={DS.muted}><strong>Subject:</strong> {selectedTicketDetail.subject}</div>
+                <div style={DS.muted}><strong>Category:</strong> {selectedTicketDetail.category}</div>
+                <div style={DS.muted}><strong>Priority:</strong> {selectedTicketDetail.priority}</div>
+                <div style={DS.muted}><strong>Status:</strong> {selectedTicketDetail.status}</div>
+                <div style={DS.muted}><strong>Created:</strong> {formatDate(selectedTicketDetail.createdAt)}</div>
+                
+                <h4 style={{ margin: '16px 0 6px', color: '#eef4fb' }}>Conversation History</h4>
+                <div style={{ display: 'grid', gap: 10, maxHeight: 300, overflowY: 'auto', borderTop: '1px solid #28425f', padding: '12px 0' }}>
+                  {selectedTicketDetail.messages?.map((msg: any, index: number) => (
+                    <div key={index} style={{
+                      padding: 10,
+                      borderRadius: 8,
+                      background: msg.senderType === 'admin' ? 'rgba(99,210,255,0.08)' : 'rgba(10,23,40,0.5)',
+                      border: msg.senderType === 'admin' ? '1px solid rgba(99,210,255,0.15)' : '1px solid #28425f',
+                      alignSelf: msg.senderType === 'admin' ? 'flex-start' : 'flex-end',
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#9fb6cb', marginBottom: 4 }}>
+                        <strong>{msg.senderType === 'admin' ? 'Admin' : 'Customer'}</strong>
+                        <span>{formatDate(msg.timestamp || msg.createdAt)}</span>
+                      </div>
+                      <div style={{ color: '#eef4fb', fontSize: 13 }}>{msg.message}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedTicketDetail(null)}
+                style={{
+                  marginTop: 20,
+                  padding: '8px 16px',
+                  background: '#63d2ff',
+                  color: '#06101d',
+                  border: 'none',
+                  borderRadius: 8,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  width: '100%'
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
