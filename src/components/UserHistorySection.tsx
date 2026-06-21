@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { adminApi, AdminUser, ActivityItem, AdminOrder } from '../services/api';
+import { can } from '../services/access';
 
 // ─── Dark-theme design tokens ──────────────────────────────────────────────
 const DS = {
@@ -38,6 +39,10 @@ export default function UserHistorySection({
   onError: (m: string) => void;
   onSuccess: (m: string) => void;
 }) {
+  const loggedInUserStr = typeof window !== 'undefined' ? localStorage.getItem('ecommerce-admin-web-user') : null;
+  const currentUser = loggedInUserStr ? JSON.parse(loggedInUserStr) : null;
+  const canControlUsers = can(currentUser?.role, 'users:control');
+
    const [users, setUsers] = useState<AdminUser[]>([]);
   const [selected, setSelected] = useState<AdminUser | null>(null);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
@@ -263,6 +268,70 @@ export default function UserHistorySection({
                   <div><small style={{ color: '#9fb6cb' }}>Role</small><div style={{ color: '#63d2ff', fontWeight: 700 }}>{selected.role || 'user'}</div></div>
                   <div style={{ marginTop: 6 }}><small style={{ color: '#9fb6cb' }}>Status</small><div style={{ color: selected.blocked ? '#ff8b8b' : '#43d17a', fontWeight: 700 }}>{selected.blocked ? '🔒 Blocked' : '✓ Active'}</div></div>
                   <div style={{ marginTop: 6 }}><small style={{ color: '#9fb6cb' }}>Verified</small><div style={{ color: selected.isVerified ? '#43d17a' : '#9fb6cb' }}>{selected.isVerified ? 'Yes' : 'No'}</div></div>
+                  {canControlUsers && (
+                    <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+                      {selected.blocked ? (
+                        <button
+                          onClick={async () => {
+                            try {
+                              await adminApi.unblockUser(selected._id || selected.id || '');
+                              onSuccess('User unblocked successfully');
+                              const updated = { ...selected, blocked: false };
+                              setSelected(updated);
+                              setUsers(users.map(u => (u._id === selected._id || u.id === selected.id) ? updated : u));
+                            } catch (e: any) {
+                              onError(e.message || String(e));
+                            }
+                          }}
+                          style={{
+                            padding: '6px 12px',
+                            background: '#43d17a',
+                            color: '#08111f',
+                            border: 'none',
+                            borderRadius: '8px',
+                            fontWeight: 'bold',
+                            fontSize: '11px',
+                            cursor: 'pointer',
+                            transition: 'opacity 0.2s',
+                          }}
+                          onMouseOver={(e) => (e.currentTarget.style.opacity = '0.85')}
+                          onMouseOut={(e) => (e.currentTarget.style.opacity = '1')}
+                        >
+                          Unblock User
+                        </button>
+                      ) : (
+                        <button
+                          onClick={async () => {
+                            if (!window.confirm(`Are you sure you want to block ${selected.name || 'this user'}?`)) return;
+                            try {
+                              await adminApi.blockUser(selected._id || selected.id || '');
+                              onSuccess('User blocked successfully');
+                              const updated = { ...selected, blocked: true };
+                              setSelected(updated);
+                              setUsers(users.map(u => (u._id === selected._id || u.id === selected.id) ? updated : u));
+                            } catch (e: any) {
+                              onError(e.message || String(e));
+                            }
+                          }}
+                          style={{
+                            padding: '6px 12px',
+                            background: '#ff8b8b',
+                            color: '#08111f',
+                            border: 'none',
+                            borderRadius: '8px',
+                            fontWeight: 'bold',
+                            fontSize: '11px',
+                            cursor: 'pointer',
+                            transition: 'opacity 0.2s',
+                          }}
+                          onMouseOver={(e) => (e.currentTarget.style.opacity = '0.85')}
+                          onMouseOut={(e) => (e.currentTarget.style.opacity = '1')}
+                        >
+                          Block User
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <p style={DS.sectionTitle}>Dates</p>
