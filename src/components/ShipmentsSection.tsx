@@ -278,7 +278,48 @@ export function ShipmentsSection({ onError, onSuccess }: ShipmentsProps) {
                   )}
                 </td>
                 <td>{s.carrier || '—'}</td>
-                <td>{shipmentBadge(s.status)}</td>
+                <td>
+                  <select
+                    value={s.status}
+                    onChange={async (e) => {
+                      const newStatus = e.target.value;
+                      if (newStatus === s.status) return;
+                      const location = window.prompt(`Update shipment status to "${newStatus.replace(/_/g, ' ')}". Please enter the location:`, "Main Hub");
+                      if (location === null) return;
+                      const desc = window.prompt(`Enter description (optional):`, `Shipment marked as ${newStatus.replace(/_/g, ' ')}`);
+                      if (desc === null) return;
+                      
+                      try {
+                        await shipmentsApi.updateTrackingStatus(s._id, {
+                          status: newStatus,
+                          location: location || 'Main Hub',
+                          description: desc || `Shipment status updated to ${newStatus}`
+                        });
+                        onSuccess(`Shipment status updated to ${newStatus}`);
+                        loadShipments();
+                      } catch (err: any) {
+                        onError(`Failed to update status: ${err.message || err}`);
+                      }
+                    }}
+                    style={{
+                      padding: '4px 8px',
+                      borderRadius: '6px',
+                      border: '1px solid #28425f',
+                      background: '#0a1622',
+                      color: '#eef4fb',
+                      fontSize: '0.85rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="packed">Packed</option>
+                    <option value="shipped">Shipped</option>
+                    <option value="in_transit">In Transit</option>
+                    <option value="out_for_delivery">Out for Delivery</option>
+                    <option value="delivered">Delivered</option>
+                    <option value="failed">Failed</option>
+                  </select>
+                </td>
                 <td><small>{(s.estimatedDelivery || s.estimatedDeliveryDate) ? new Date(s.estimatedDelivery || s.estimatedDeliveryDate || '').toLocaleDateString() : '—'}</small></td>
                 <td><small>{s.weight ?? '—'} kg</small></td>
                 <td><small>₹{s.cost ?? '—'}</small></td>
