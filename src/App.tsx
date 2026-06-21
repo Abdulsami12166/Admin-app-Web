@@ -666,6 +666,7 @@ function Access({
   onUpdated: (message: string) => Promise<void>;
 }) {
   const availableRoles = manageableRoles.length ? manageableRoles : managedAdminRoles;
+  const [selectedRole, setSelectedRole] = React.useState<AdminRole>(availableRoles[0]);
   const [draftMatrix, setDraftMatrix] = React.useState<RolePermissionMatrix>(permissionMatrix);
   const [savingRole, setSavingRole] = React.useState<string>('');
   const [newAdmin, setNewAdmin] = React.useState({
@@ -712,6 +713,11 @@ function Access({
     await onUpdated(`${response.data.admin.email} created as ${roleLabels[normalizeRole(response.data.admin.role)]}.`);
   }
 
+  const rolePermissionOptions = allPermissions.filter(
+    permission => !['admins:manage', 'roles:assign', 'system:configure'].includes(permission)
+  );
+  const checkedPermissions = draftMatrix[selectedRole] || [];
+
   return (
     <section className="grid-two">
       <Panel title="Role & access manager">
@@ -719,40 +725,45 @@ function Access({
           <strong>{roleLabels['super-admin']}</strong>
           <span>Full access is always enabled and cannot be restricted.</span>
         </article>
-        {availableRoles.map(roleKey => {
-          const defaultPermissions = rolePermissions[roleKey] || [];
-          const rolePermissionOptions = roleKey === 'super-admin' ? allPermissions : defaultPermissions;
-          const checkedPermissions = draftMatrix[roleKey] ?? defaultPermissions;
 
-          return (
-            <article className="row-card" key={roleKey}>
-              <div className="split">
-                <strong>{roleLabels[roleKey]}</strong>
-                <button
-                  type="button"
-                  className="secondary"
-                  disabled={savingRole === roleKey}
-                  onClick={() => saveRole(roleKey)}>
-                  {savingRole === roleKey ? 'Saving...' : 'Save permissions'}
-                </button>
-              </div>
-              <div className="permission-grid">
-                {rolePermissionOptions
-                  .filter(permission => !['admins:manage', 'roles:assign', 'system:configure'].includes(permission))
-                  .map(permission => (
-                    <label className="permission-check" key={`${roleKey}-${permission}`}>
-                      <input
-                        type="checkbox"
-                        checked={checkedPermissions.includes(permission)}
-                        onChange={() => togglePermission(roleKey, permission)}
-                      />
-                      <span>{permissionLabels[permission]}</span>
-                    </label>
-                  ))}
-              </div>
-            </article>
-          );
-        })}
+        {/* Tab selection for roles */}
+        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
+          {availableRoles.map(roleKey => (
+            <button
+              key={roleKey}
+              type="button"
+              className={selectedRole === roleKey ? 'primary' : 'secondary'}
+              style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}
+              onClick={() => setSelectedRole(roleKey)}>
+              {roleLabels[roleKey]}
+            </button>
+          ))}
+        </div>
+
+        <article className="row-card">
+          <div className="split">
+            <strong>{roleLabels[selectedRole]} Permissions</strong>
+            <button
+              type="button"
+              className="secondary"
+              disabled={savingRole === selectedRole}
+              onClick={() => saveRole(selectedRole)}>
+              {savingRole === selectedRole ? 'Saving...' : 'Save permissions'}
+            </button>
+          </div>
+          <div className="permission-grid" style={{ marginTop: '1rem' }}>
+            {rolePermissionOptions.map(permission => (
+              <label className="permission-check" key={`${selectedRole}-${permission}`}>
+                <input
+                  type="checkbox"
+                  checked={checkedPermissions.includes(permission)}
+                  onChange={() => togglePermission(selectedRole, permission)}
+                />
+                <span>{permissionLabels[permission]}</span>
+              </label>
+            ))}
+          </div>
+        </article>
       </Panel>
       <Panel title="Create sub admin">
         <form className="product-form" onSubmit={submitAdmin}>
