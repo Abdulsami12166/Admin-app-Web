@@ -69,7 +69,7 @@ export const customerApi = {
   },
 
   async getCustomerActivityLogs(userId: string, page = 1, limit = 50) {
-    return adminApi(`/admin/customers/${userId}/activity-logs?page=${page}&limit=${limit}`, 'GET');
+    return adminApi(`/admin/customers/${userId}/audit-logs?page=${page}&limit=${limit}`, 'GET');
   },
 
   async getCustomerNotificationPreferences(userId: string) {

@@ -716,9 +716,14 @@ function Access({
 
   async function submitAdmin(event: React.FormEvent) {
     event.preventDefault();
-    const response = await adminApi.createAdmin(newAdmin);
-    setNewAdmin({name: '', email: '', password: '', role: availableRoles[0]});
-    await onUpdated(`${response.data.admin.email} created as ${roleLabels[normalizeRole(response.data.admin.role)]}.`);
+    try {
+      const response = await adminApi.createAdmin(newAdmin);
+      setNewAdmin({name: '', email: '', password: '', role: availableRoles[0]});
+      showSuccess('Success', 'User created successfully.');
+      await onUpdated(`${response.data.admin.email} created as ${roleLabels[normalizeRole(response.data.admin.role)]}.`);
+    } catch (error: any) {
+      showError('Error', error.message || 'User creation failed.');
+    }
   }
 
   const rolePermissionOptions = allPermissions.filter(

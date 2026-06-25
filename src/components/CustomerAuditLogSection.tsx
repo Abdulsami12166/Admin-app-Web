@@ -204,7 +204,7 @@ export function CustomerAuditLogSection({ onError, onSuccess }: CustomerAuditLog
                     <td style={DS.td}>
                       <span style={{ textTransform: 'capitalize', fontSize: 12 }}>{log.module}</span>
                     </td>
-                    <td style={DS.td} style={{ ...DS.td, maxWidth: '250px', wordBreak: 'break-word' }}>
+                    <td style={{ ...DS.td, maxWidth: '250px', wordBreak: 'break-word' }}>
                       {log.details}
                     </td>
                     <td style={DS.td}>
