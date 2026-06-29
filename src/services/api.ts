@@ -297,8 +297,8 @@ export const adminApi = Object.assign(adminApiFunction, {
     apiRequest(`/admin/products/${productId}/variants/${variantId}`, {method: 'DELETE', auth: true}),
   getOrders: () => apiRequest<{data: {orders: AdminOrder[]}}>('/admin/orders', {auth: true}),
   getTransactions: async () => {
-    const response = await apiRequest<{data: {orders: AdminOrder[]}}>('/admin/orders', {auth: true});
-    return {data: {transactions: response.data?.orders || []}};
+    const response = await apiRequest<{data: {transactions: AdminTransaction[]}}>('/admin/transactions', {auth: true});
+    return {data: {transactions: response.data?.transactions || []}};
   },
   updateOrderStatus: (orderId: string, orderStatus: string) =>
     apiRequest(`/admin/orders/${orderId}/status`, {

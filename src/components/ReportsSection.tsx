@@ -26,7 +26,8 @@ export function ReportsSection({ onError, onSuccess }: ReportsProps) {
     setLoading(true);
     try {
       const result = await reportsApi.getReport(reportType, dateRange);
-      setReportData(result.data);
+      const data = result?.data || (result as any);
+      setReportData(data || {});
     } catch (err) {
       onError(`Failed to load report: ${err}`);
     } finally {

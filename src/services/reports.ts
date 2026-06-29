@@ -34,7 +34,8 @@ export const reportsApi = {
     if (dateRange.start) params.append('startDate', dateRange.start);
     if (dateRange.end) params.append('endDate', dateRange.end);
     
-    return adminApi(`/admin/reports/${type}?${params.toString()}`, 'GET');
+    const res = await adminApi(`/admin/reports/${type}?${params.toString()}`, 'GET');
+    return { data: res?.data?.data || res?.data || res };
   },
 
   async exportReport(type: string, format: 'csv' | 'pdf', dateRange: { start: string; end: string }): Promise<void> {
